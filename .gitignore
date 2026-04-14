@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+Thumbs.db
+.wwebjs_auth/
+*.tmp
+AutoCount Reference/
+QUOTATION_*.pdf
+backend/*.json
+backend/debtor_id.txt

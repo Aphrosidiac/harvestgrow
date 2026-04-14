@@ -1,0 +1,50 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+@theme {
+  /* HarvestGrow — Olive Green + Cream */
+  --color-green-50:  #f4f7e8;
+  --color-green-100: #e6eec8;
+  --color-green-200: #d2e09e;
+  --color-green-300: #bccf74;
+  --color-green-400: #a6bd51;
+  --color-green-500: #869940;
+  --color-green-600: #839a42;
+  --color-green-700: #6d803a;
+  --color-green-800: #556628;
+  --color-green-900: #495c14;
+  --color-green-950: #2f3d0a;
+
+  --color-cream-50:  #fdfaf6;
+  --color-cream-100: #f9f1e6;
+  --color-cream-200: #f5ebe2;
+  --color-cream-300: #ecdcc5;
+  --color-cream-400: #e0c9a6;
+
+  --color-olive: #6b7a3d;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Montserrat', system-ui, sans-serif;
+}
+
+/* Base styles */
+body {
+  @apply bg-[#f5ebe2] text-stone-900 font-sans antialiased;
+  margin: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f5ebe2;
+}
+::-webkit-scrollbar-thumb {
+  background: #c9c0b2;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #869940;
+}

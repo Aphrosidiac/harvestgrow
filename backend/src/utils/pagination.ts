@@ -1,0 +1,18 @@
+export function getPaginationParams(query: Record<string, any>) {
+  const page = Math.max(1, parseInt(query.page) || 1)
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 20))
+  const skip = (page - 1) * limit
+
+  return { page, limit, skip }
+}
+
+export function paginatedResponse<T>(data: T[], total: number, page: number, limit: number) {
+  return {
+    success: true,
+    data,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  }
+}

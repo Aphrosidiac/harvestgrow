@@ -1,0 +1,741 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── BRANCH ────────────────────────────────────────────────
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  ssmNumber   String?
+  bankName    String?
+  bankAccount String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  stockItems       StockItem[]
+  categories       StockCategory[]
+  documents        Document[]
+  documentSettings DocumentSetting[]
+  paymentTerms     PaymentTerm[]
+  customers        Customer[]
+  suppliers        Supplier[]
+  purchaseInvoices PurchaseInvoice[]
+  supplierPayments SupplierPayment[]
+
+  @@map("branches")
+}
+
+// ─── USER (unified staff — replaces old Worker model) ─────
+model User {
+  id           String   @id @default(cuid())
+  branchId     String
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  jobTitle     String?
+  role         Role     @default(PACKER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branch            Branch         @relation(fields: [branchId], references: [id])
+  createdDocuments  Document[]     @relation("DocumentCreatedBy")
+  createdPayments   Payment[]      @relation("PaymentCreatedBy")
+  stockHistory      StockHistory[] @relation("StockHistoryCreatedBy")
+  foremanDocuments       Document[]          @relation("DocumentWorker")
+  createdPurchaseInvoices PurchaseInvoice[]  @relation("PurchaseInvoiceCreatedBy")
+  createdSupplierPayments SupplierPayment[] @relation("SupplierPaymentCreatedBy")
+  priceHistory            PriceHistory[]
+  orderStatusLogs         OrderStatusLog[]
+  driverProfile           Driver?
+
+  @@index([branchId])
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  PRODUCTION
+  PACKER
+  DRIVER
+}
+
+// ─── STOCK CATEGORY ────────────────────────────────────────
+model StockCategory {
+  id        String   @id @default(cuid())
+  branchId  String
+  name      String
+  code      String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch Branch      @relation(fields: [branchId], references: [id])
+  items  StockItem[]
+
+  @@unique([branchId, name])
+  @@map("stock_categories")
+}
+
+// ─── STOCK ITEM ────────────────────────────────────────────
+model StockItem {
+  id              String   @id @default(cuid())
+  branchId        String
+  categoryId      String?
+  itemCode        String
+  description     String
+  uom             String   @default("PCS")
+  costPrice       Decimal  @db.Decimal(12, 2)
+  sellPrice       Decimal  @db.Decimal(12, 2)
+  quantity        Int      @default(0)
+  holdQuantity    Int      @default(0)
+  minStock        Int      @default(5)
+  imageUrl        String?
+  previousPrice   Decimal? @db.Decimal(12, 2)
+  priceUpdatedAt  DateTime?
+  isPerishable    Boolean  @default(true)
+  shelfLifeDays   Int?
+  cutOptions      String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  branch        Branch         @relation(fields: [branchId], references: [id])
+  category      StockCategory? @relation(fields: [categoryId], references: [id])
+  documentItems      DocumentItem[]
+  history            StockHistory[]
+  purchaseItems      PurchaseInvoiceItem[]
+  priceHistory       PriceHistory[]
+  orderLines         OrderLine[]
+
+  @@unique([branchId, itemCode])
+  @@index([branchId])
+  @@index([itemCode])
+  @@map("stock_items")
+}
+
+// ─── STOCK HISTORY ─────────────────────────────────────────
+model StockHistory {
+  id          String           @id @default(cuid())
+  branchId    String
+  stockItemId String
+  type        StockMovementType
+  quantity    Int
+  previousQty Int
+  newQty      Int
+  reason      String
+  documentId  String?
+  createdById String
+  createdAt   DateTime         @default(now())
+
+  stockItem StockItem @relation(fields: [stockItemId], references: [id])
+  document  Document? @relation(fields: [documentId], references: [id])
+  createdBy User      @relation("StockHistoryCreatedBy", fields: [createdById], references: [id])
+
+  @@index([stockItemId])
+  @@index([branchId])
+  @@index([createdAt])
+  @@map("stock_history")
+}
+
+// ─── PRICE HISTORY ─────────────────────────────────────────
+model PriceHistory {
+  id          String   @id @default(cuid())
+  stockItemId String
+  stockItem   StockItem @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  oldPrice    Decimal  @db.Decimal(10, 2)
+  newPrice    Decimal  @db.Decimal(10, 2)
+  changedById String?
+  changedBy   User?    @relation(fields: [changedById], references: [id])
+  changedAt   DateTime @default(now())
+  note        String?
+
+  @@index([stockItemId, changedAt])
+  @@map("price_history")
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  HOLD
+  RELEASE
+}
+
+// ─── CUSTOMER ──────────────────────────────────────────────
+model Customer {
+  id             String   @id @default(cuid())
+  branchId       String
+  name           String   @default("")
+  companyName    String?
+  phone          String?
+  email          String?
+  address        String?
+  shopCustomerId String?  @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  branch       Branch        @relation(fields: [branchId], references: [id])
+  shopCustomer ShopCustomer? @relation(fields: [shopCustomerId], references: [id])
+  vehicles     Vehicle[]
+  documents    Document[]
+
+  @@index([branchId])
+  @@map("customers")
+}
+
+// ─── VEHICLE ───────────────────────────────────────────────
+model Vehicle {
+  id         String   @id @default(cuid())
+  customerId String
+  plate      String
+  make       String?
+  model      String?
+  color      String?
+  engineNo   String?
+  mileage    String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer  Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@index([customerId])
+  @@map("vehicles")
+}
+
+// ─── DOCUMENT ──────────────────────────────────────────────
+model Document {
+  id             String       @id @default(cuid())
+  branchId       String
+  documentType   DocumentType
+  documentNumber String
+  // Customer & Vehicle links
+  customerId     String?
+  vehicleId      String?
+  // Snapshot fields (copied from customer/vehicle at creation)
+  customerName        String?
+  customerCompanyName String?
+  customerPhone       String?
+  customerEmail       String?
+  // Vehicle info (car workshop specific)
+  vehiclePlate   String?
+  vehicleModel   String?
+  vehicleMileage String?
+  vehicleColor   String?
+  vehicleEngineNo String?
+  // Dates
+  issueDate      DateTime     @default(now())
+  dueDate        DateTime?
+  // Status
+  status         DocumentStatus @default(DRAFT)
+  // Totals
+  subtotal       Decimal      @db.Decimal(12, 2) @default(0)
+  taxAmount      Decimal      @db.Decimal(12, 2) @default(0)
+  discountAmount Decimal      @db.Decimal(12, 2) @default(0)
+  totalAmount    Decimal      @db.Decimal(12, 2) @default(0)
+  paidAmount     Decimal      @db.Decimal(12, 2) @default(0)
+  // Content
+  notes          String?
+  terms          String?
+  footerNote     String?
+  // Relations
+  createdById    String
+  foremanId      String?
+  // Conversion tracking
+  convertedFromId   String?
+  convertedFromType DocumentType?
+
+  branch      Branch         @relation(fields: [branchId], references: [id])
+  createdBy   User           @relation("DocumentCreatedBy", fields: [createdById], references: [id])
+  foreman     User?          @relation("DocumentWorker", fields: [foremanId], references: [id])
+  customer    Customer?      @relation(fields: [customerId], references: [id])
+  vehicle     Vehicle?       @relation(fields: [vehicleId], references: [id])
+  items        DocumentItem[]
+  payments     Payment[]
+  stockHistory StockHistory[]
+  linkedOrder       Order? @relation("OrderInvoice")
+  deliveryOrderFor  Order? @relation("OrderDeliveryOrder")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, documentNumber])
+  @@index([branchId])
+  @@index([documentType])
+  @@index([documentNumber])
+  @@index([issueDate])
+  @@index([status])
+  @@map("documents")
+}
+
+enum DocumentType {
+  QUOTATION
+  INVOICE
+  RECEIPT
+  DELIVERY_ORDER
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  SENT
+  OUTSTANDING
+  PARTIAL
+  PAID
+  OVERDUE
+  COMPLETED
+  CANCELLED
+  VOID
+}
+
+// ─── DOCUMENT ITEM ─────────────────────────────────────────
+model DocumentItem {
+  id             String  @id @default(cuid())
+  documentId     String
+  stockItemId    String?
+  // Snapshot fields
+  itemCode       String?
+  description    String
+  quantity       Int     @default(1)
+  unit           String  @default("PCS")
+  unitPrice      Decimal @db.Decimal(12, 2) @default(0)
+  discountPercent Decimal @db.Decimal(5, 2) @default(0)
+  taxRate        Decimal @db.Decimal(5, 2) @default(0)
+  subtotal       Decimal @db.Decimal(12, 2) @default(0)
+  taxAmount      Decimal @db.Decimal(12, 2) @default(0)
+  total          Decimal @db.Decimal(12, 2) @default(0)
+  sortOrder      Int     @default(0)
+  serviceDate    DateTime?
+  serviceReminderSent Boolean @default(false)
+
+  document  Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  stockItem StockItem? @relation(fields: [stockItemId], references: [id])
+
+  @@index([documentId])
+  @@map("document_items")
+}
+
+// ─── PAYMENT ───────────────────────────────────────────────
+model Payment {
+  id              String        @id @default(cuid())
+  documentId      String
+  amount          Decimal       @db.Decimal(12, 2)
+  paymentMethod   PaymentMethod
+  referenceNumber String?
+  notes           String?
+  bankName        String?
+  createdById     String
+  createdAt       DateTime      @default(now())
+
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy User     @relation("PaymentCreatedBy", fields: [createdById], references: [id])
+
+  @@index([documentId])
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  CREDIT_CARD
+  EWALLET
+  TNG
+  BOOST
+}
+
+// ─── DOCUMENT SETTING ──────────────────────────────────────
+model DocumentSetting {
+  id                     String       @id @default(cuid())
+  branchId               String
+  documentType           DocumentType
+  prefix                 String       @default("")
+  nextNumber             Int          @default(1)
+  paddingLength          Int          @default(4)
+  includeYear            Boolean      @default(true)
+  yearFormat             String       @default("YY")
+  separator              String       @default("-")
+  template               String       @default("standard")
+  templateColor          String       @default("#FFD700")
+  documentLabel          String?
+  footerNotes            String?
+  documentSize           String       @default("A4")
+  logoScale              Decimal      @db.Decimal(3, 2) @default(1.00)
+  defaultNotes           String?
+  defaultTerms           String?
+  defaultPaymentTermDays Int          @default(30)
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@unique([branchId, documentType])
+  @@map("document_settings")
+}
+
+// ─── PAYMENT TERM ──────────────────────────────────────────
+model PaymentTerm {
+  id          String   @id @default(cuid())
+  branchId    String
+  name        String
+  days        Int      @default(30)
+  description String?
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@map("payment_terms")
+}
+
+// ─── SUPPLIER ─────────────────────────────────────────────
+model Supplier {
+  id           String   @id @default(cuid())
+  branchId     String
+  companyName  String
+  contactName  String?
+  phone        String?
+  email        String?
+  address      String?
+  bankName     String?
+  bankAccount  String?
+  notes        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branch           Branch             @relation(fields: [branchId], references: [id])
+  purchaseInvoices PurchaseInvoice[]
+  payments         SupplierPayment[]
+
+  @@index([branchId])
+  @@map("suppliers")
+}
+
+// ─── PURCHASE INVOICE ─────────────────────────────────────
+model PurchaseInvoice {
+  id              String                @id @default(cuid())
+  branchId        String
+  supplierId      String
+  invoiceNumber   String
+  internalNumber  String
+  status          PurchaseInvoiceStatus @default(ON_HOLD)
+  subtotal        Decimal               @db.Decimal(12, 2) @default(0)
+  taxAmount       Decimal               @db.Decimal(12, 2) @default(0)
+  totalAmount     Decimal               @db.Decimal(12, 2) @default(0)
+  paidAmount      Decimal               @db.Decimal(12, 2) @default(0)
+  notes           String?
+  issueDate       DateTime              @default(now())
+  receivedDate    DateTime?
+  createdById     String
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  branch      Branch               @relation(fields: [branchId], references: [id])
+  supplier    Supplier             @relation(fields: [supplierId], references: [id])
+  createdBy   User                 @relation("PurchaseInvoiceCreatedBy", fields: [createdById], references: [id])
+  items       PurchaseInvoiceItem[]
+  attachments PurchaseAttachment[]
+  payments    SupplierPayment[]
+
+  @@unique([branchId, internalNumber])
+  @@index([branchId])
+  @@index([supplierId])
+  @@map("purchase_invoices")
+}
+
+enum PurchaseInvoiceStatus {
+  ON_HOLD
+  VERIFIED
+  FINALIZED
+  CANCELLED
+}
+
+model PurchaseInvoiceItem {
+  id                String  @id @default(cuid())
+  purchaseInvoiceId String
+  stockItemId       String?
+  itemCode          String?
+  description       String
+  quantity          Int     @default(1)
+  unitPrice         Decimal @db.Decimal(12, 2) @default(0)
+  total             Decimal @db.Decimal(12, 2) @default(0)
+  isChecked         Boolean @default(false)
+  sortOrder         Int     @default(0)
+
+  purchaseInvoice PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  stockItem       StockItem?      @relation(fields: [stockItemId], references: [id])
+
+  @@index([purchaseInvoiceId])
+  @@map("purchase_invoice_items")
+}
+
+model PurchaseAttachment {
+  id                String   @id @default(cuid())
+  purchaseInvoiceId String
+  fileName          String
+  fileUrl           String
+  fileSize          Int
+  mimeType          String
+  createdAt         DateTime @default(now())
+
+  purchaseInvoice PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseInvoiceId])
+  @@map("purchase_attachments")
+}
+
+// ─── SUPPLIER PAYMENT ─────────────────────────────────────
+model SupplierPayment {
+  id                String        @id @default(cuid())
+  branchId          String
+  supplierId        String
+  purchaseInvoiceId String?
+  paymentNumber     String
+  amount            Decimal       @db.Decimal(12, 2)
+  paymentMethod     PaymentMethod
+  referenceNumber   String?
+  notes             String?
+  bankName          String?
+  paymentDate       DateTime      @default(now())
+  createdById       String
+  createdAt         DateTime      @default(now())
+
+  branch          Branch           @relation(fields: [branchId], references: [id])
+  supplier        Supplier         @relation(fields: [supplierId], references: [id])
+  purchaseInvoice PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+  createdBy       User             @relation("SupplierPaymentCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([branchId, paymentNumber])
+  @@index([branchId])
+  @@index([supplierId])
+  @@map("supplier_payments")
+}
+
+// ─── AUDIT LOG ─────────────────────────────────────────────
+model AuditLog {
+  id         String   @id @default(cuid())
+  branchId   String?
+  userId     String?
+  userEmail  String?
+  action     String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, ASSISTANT_TOOL, REQUEST
+  entity     String   // document, payment, stock, user, supplier, purchase-invoice, assistant, auth
+  entityId   String?
+  method     String?
+  path       String?
+  statusCode Int?
+  ipAddress  String?
+  userAgent  String?
+  changes    Json?    // { before?, after?, input? }
+  createdAt  DateTime @default(now())
+
+  @@index([branchId, createdAt])
+  @@index([userId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+// ─── SHOP CUSTOMER ─────────────────────────────────────────
+model ShopCustomer {
+  id           String   @id @default(cuid())
+  email        String?  @unique
+  phone        String   @unique
+  name         String
+  address      String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+
+  orders       Order[]
+  customer     Customer?
+
+  @@map("shop_customers")
+}
+
+// ─── ORDER ─────────────────────────────────────────────────
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique
+  shopCustomerId  String?
+  shopCustomer    ShopCustomer? @relation(fields: [shopCustomerId], references: [id])
+
+  contactName     String
+  contactPhone    String
+  contactEmail    String?
+  deliveryAddress String
+  deliveryDate    DateTime
+  deliverySlot    String
+  notes           String?
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(UNPAID)
+
+  subtotal        Decimal       @db.Decimal(12, 2)
+  deliveryFee     Decimal       @db.Decimal(10, 2) @default(0)
+  total           Decimal       @db.Decimal(12, 2)
+
+  invoiceId       String?       @unique
+  invoice         Document?     @relation("OrderInvoice", fields: [invoiceId], references: [id])
+
+  deliveryOrderId String?       @unique
+  deliveryOrder   Document?     @relation("OrderDeliveryOrder", fields: [deliveryOrderId], references: [id])
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  lines           OrderLine[]
+  statusLogs      OrderStatusLog[]
+  deliveryStop    DeliveryStop?
+
+  @@index([deliveryDate, status])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderLine {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  stockItemId String
+  stockItem   StockItem @relation(fields: [stockItemId], references: [id])
+  itemName    String
+  unit        String
+  quantity    Decimal  @db.Decimal(10, 3)
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  cutStyle    String?
+  notes       String?
+  lineTotal   Decimal  @db.Decimal(12, 2)
+  picked      Boolean  @default(false)
+  pickedAt    DateTime?
+  packed      Boolean  @default(false)
+  packedAt    DateTime?
+
+  @@index([orderId])
+  @@map("order_lines")
+}
+
+model OrderStatusLog {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  changedById String?
+  changedBy   User?        @relation(fields: [changedById], references: [id])
+  note        String?
+  createdAt   DateTime     @default(now())
+
+  @@index([orderId, createdAt])
+  @@map("order_status_logs")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PICKING
+  CUTTING
+  PACKING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  PARTIAL
+  REFUNDED
+}
+
+// ─── DELIVERY (Phase 4) ────────────────────────────────────
+model Driver {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehiclePlate String?
+  phone        String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  trips DeliveryTrip[]
+
+  @@map("drivers")
+}
+
+model DeliveryTrip {
+  id          String     @id @default(cuid())
+  driverId    String
+  driver      Driver     @relation(fields: [driverId], references: [id])
+  date        DateTime   @db.Date
+  slot        String
+  status      TripStatus @default(PLANNED)
+  startedAt   DateTime?
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime   @default(now())
+
+  stops DeliveryStop[]
+
+  @@unique([driverId, date, slot])
+  @@index([date, status])
+  @@map("delivery_trips")
+}
+
+model DeliveryStop {
+  id               String     @id @default(cuid())
+  tripId           String
+  trip             DeliveryTrip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  orderId          String     @unique
+  order            Order      @relation(fields: [orderId], references: [id])
+  sequence         Int
+  status           StopStatus @default(PENDING)
+  arrivedAt        DateTime?
+  deliveredAt      DateTime?
+  failureReason    String?
+  proofPhotoUrl    String?    @db.Text
+  signatureDataUrl String?    @db.Text
+  receivedByName   String?
+  notes            String?
+
+  @@index([tripId, sequence])
+  @@map("delivery_stops")
+}
+
+enum TripStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum StopStatus {
+  PENDING
+  ARRIVED
+  DELIVERED
+  FAILED
+  SKIPPED
+}
+
+// ─── SETTING ───────────────────────────────────────────────
+model Setting {
+  key   String @id
+  value String
+
+  @@map("settings")
+}
+
