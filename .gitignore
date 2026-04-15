@@ -8,5 +8,7 @@ Thumbs.db
 *.tmp
 AutoCount Reference/
 QUOTATION_*.pdf
-backend/*.json
 backend/debtor_id.txt
+!backend/package.json
+!backend/package-lock.json
+!backend/tsconfig.json
