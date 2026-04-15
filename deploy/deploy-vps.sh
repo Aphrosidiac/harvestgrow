@@ -60,7 +60,7 @@ EOF
 # ─── 4. Backend install + migrate + seed ────────────
 echo "[4/8] Installing backend deps..."
 cd "$APP_DIR/backend"
-npm ci --no-audit --no-fund
+npm install --no-audit --no-fund
 echo "  → migrate..."
 npx prisma migrate deploy
 echo "  → generate..."
@@ -75,7 +75,7 @@ echo "[5/8] Building frontend..."
 cd "$APP_DIR/frontend"
 # Point API at the public backend port
 echo "VITE_API_BASE=http://$PUBLIC_IP:$BACKEND_PORT/api/v1" > .env.production
-npm ci --no-audit --no-fund
+npm install --no-audit --no-fund
 NODE_OPTIONS=--max-old-space-size=4096 npm run build
 
 # ─── 6. PM2 backend ─────────────────────────────────
