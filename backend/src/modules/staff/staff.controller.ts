@@ -9,17 +9,21 @@ export async function listStaff(
 ) {
   const { branchId } = request.user
   const { page, limit, skip } = getPaginationParams(request.query)
-  const { search, role } = request.query as any
+  const { search, role, status, userGroup } = request.query as any
 
   const where: Prisma.UserWhereInput = {
     branchId,
     ...(role && { role }),
+    ...(userGroup && { userGroup }),
+    ...(status === 'active' && { isActive: true }),
+    ...(status === 'inactive' && { isActive: false }),
     ...(search && {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search, mode: 'insensitive' } },
         { jobTitle: { contains: search, mode: 'insensitive' } },
+        { username: { contains: search, mode: 'insensitive' } },
       ],
     }),
   }
@@ -29,11 +33,13 @@ export async function listStaff(
       where,
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
         phone: true,
         jobTitle: true,
         role: true,
+        userGroup: true,
         isActive: true,
         createdAt: true,
         _count: { select: { foremanDocuments: true } },
@@ -57,11 +63,13 @@ export async function getStaff(
     where: { id: request.params.id, branchId },
     select: {
       id: true,
+      username: true,
       name: true,
       email: true,
       phone: true,
       jobTitle: true,
       role: true,
+      userGroup: true,
       isActive: true,
       createdAt: true,
       _count: { select: { foremanDocuments: true } },
@@ -81,15 +89,17 @@ export async function createStaff(
       name: string
       email: string
       password: string
+      username?: string
       phone?: string
       jobTitle?: string
       role?: string
+      userGroup?: string
     }
   }>,
   reply: FastifyReply
 ) {
   const { branchId } = request.user
-  const { name, email, password, phone, jobTitle, role } = request.body
+  const { name, email, password, username, phone, jobTitle, role, userGroup } = request.body
 
   if (!name?.trim() || !email?.trim() || !password) {
     return reply.status(400).send({ success: false, message: 'Name, email, and password are required' })
@@ -107,28 +117,45 @@ export async function createStaff(
     return reply.status(400).send({ success: false, message: 'Email already in use' })
   }
 
+  // Check username uniqueness
+  if (username?.trim()) {
+    const usernameExists = await request.server.prisma.user.findUnique({
+      where: { username: username.trim().toLowerCase() },
+    })
+    if (usernameExists) {
+      return reply.status(400).send({ success: false, message: 'Username already in use' })
+    }
+  }
+
   const validRoles = ['ADMIN', 'MANAGER', 'PRODUCTION', 'PACKER', 'DRIVER']
   const userRole = role && validRoles.includes(role) ? role : 'PACKER'
+
+  const validGroups = ['SUPER_ADMIN', 'BOSS', 'ADMIN', 'INVENTORY_MANAGER']
+  const group = userGroup && validGroups.includes(userGroup) ? userGroup : null
 
   const passwordHash = await bcrypt.hash(password, 10)
 
   const staff = await request.server.prisma.user.create({
     data: {
       branchId,
+      username: username?.trim()?.toLowerCase() || null,
       name: name.trim(),
       email: email.trim().toLowerCase(),
       passwordHash,
       phone: phone?.trim() || null,
       jobTitle: jobTitle?.trim() || null,
       role: userRole as any,
+      userGroup: group as any,
     },
     select: {
       id: true,
+      username: true,
       name: true,
       email: true,
       phone: true,
       jobTitle: true,
       role: true,
+      userGroup: true,
       isActive: true,
       createdAt: true,
     },
@@ -143,9 +170,11 @@ export async function updateStaff(
     Body: {
       name?: string
       email?: string
+      username?: string
       phone?: string
       jobTitle?: string
       role?: string
+      userGroup?: string | null
       isActive?: boolean
     }
   }>,
@@ -153,7 +182,7 @@ export async function updateStaff(
 ) {
   const { branchId } = request.user
   const { id } = request.params
-  const { name, email, phone, jobTitle, role, isActive } = request.body
+  const { name, email, username, phone, jobTitle, role, userGroup, isActive } = request.body
 
   const existing = await request.server.prisma.user.findFirst({
     where: { id, branchId },
@@ -177,31 +206,74 @@ export async function updateStaff(
     }
   }
 
+  // Check username uniqueness if changing
+  if (username !== undefined && username?.trim()?.toLowerCase() !== existing.username) {
+    if (username?.trim()) {
+      const usernameExists = await request.server.prisma.user.findUnique({
+        where: { username: username.trim().toLowerCase() },
+      })
+      if (usernameExists) {
+        return reply.status(400).send({ success: false, message: 'Username already in use' })
+      }
+    }
+  }
+
   const validRoles = ['ADMIN', 'MANAGER', 'PRODUCTION', 'PACKER', 'DRIVER']
+  const validGroups = ['SUPER_ADMIN', 'BOSS', 'ADMIN', 'INVENTORY_MANAGER']
 
   const staff = await request.server.prisma.user.update({
     where: { id },
     data: {
       ...(name && { name: name.trim() }),
       ...(email && { email: email.trim().toLowerCase() }),
+      ...(username !== undefined && { username: username?.trim()?.toLowerCase() || null }),
       ...(phone !== undefined && { phone: phone?.trim() || null }),
       ...(jobTitle !== undefined && { jobTitle: jobTitle?.trim() || null }),
       ...(role && validRoles.includes(role) && { role: role as any }),
+      ...(userGroup !== undefined && { userGroup: (userGroup && validGroups.includes(userGroup) ? userGroup : null) as any }),
       ...(isActive !== undefined && { isActive }),
     },
     select: {
       id: true,
+      username: true,
       name: true,
       email: true,
       phone: true,
       jobTitle: true,
       role: true,
+      userGroup: true,
       isActive: true,
       createdAt: true,
     },
   })
 
   return reply.send({ success: true, data: staff })
+}
+
+export async function deleteStaff(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  const { branchId, userId } = request.user
+  const { id } = request.params
+
+  if (id === userId) {
+    return reply.status(400).send({ success: false, message: 'Cannot delete your own account' })
+  }
+
+  const existing = await request.server.prisma.user.findFirst({
+    where: { id, branchId },
+  })
+  if (!existing) {
+    return reply.status(404).send({ success: false, message: 'Staff not found' })
+  }
+
+  await request.server.prisma.user.update({
+    where: { id },
+    data: { isActive: false },
+  })
+
+  return reply.send({ success: true, message: 'User deleted' })
 }
 
 export async function resetPassword(

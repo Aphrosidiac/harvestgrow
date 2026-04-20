@@ -32,23 +32,33 @@ model Branch {
   suppliers        Supplier[]
   purchaseInvoices PurchaseInvoice[]
   supplierPayments SupplierPayment[]
+  salesOrders      SalesOrder[]
+  salesOrderSetting SalesOrderSetting?
+  customerGroups   CustomerGroup[]
+  pricingBoards    PricingBoard[]
+  trucks           Truck[]
+  clearanceLists       ProductClearanceList[]
+  quotationTypes       QuotationType[]
+  packingListTemplates PackingListTemplate[]
 
   @@map("branches")
 }
 
 // ─── USER (unified staff — replaces old Worker model) ─────
 model User {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   branchId     String
-  email        String   @unique
+  username     String?    @unique
+  email        String     @unique
   passwordHash String
   name         String
   phone        String?
   jobTitle     String?
-  role         Role     @default(PACKER)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         Role       @default(PACKER)
+  userGroup    UserGroup?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   branch            Branch         @relation(fields: [branchId], references: [id])
   createdDocuments  Document[]     @relation("DocumentCreatedBy")
@@ -60,6 +70,9 @@ model User {
   priceHistory            PriceHistory[]
   orderStatusLogs         OrderStatusLog[]
   driverProfile           Driver?
+  createdSalesOrders      SalesOrder[] @relation("SalesOrderCreatedBy")
+  createdPricingBoards    PricingBoard[] @relation("PricingBoardCreatedBy")
+  createdClearanceLists   ProductClearanceList[] @relation("ClearanceListCreatedBy")
 
   @@index([branchId])
   @@map("users")
@@ -71,6 +84,13 @@ enum Role {
   PRODUCTION
   PACKER
   DRIVER
+}
+
+enum UserGroup {
+  SUPER_ADMIN
+  BOSS
+  ADMIN
+  INVENTORY_MANAGER
 }
 
 // ─── STOCK CATEGORY ────────────────────────────────────────
@@ -120,6 +140,9 @@ model StockItem {
   purchaseItems      PurchaseInvoiceItem[]
   priceHistory       PriceHistory[]
   orderLines         OrderLine[]
+  salesOrderItems    SalesOrderItem[]
+  pricingBoardItems  PricingBoardItem[]
+  clearanceItems     ProductClearanceItem[]
 
   @@unique([branchId, itemCode])
   @@index([branchId])
@@ -188,10 +211,22 @@ model Customer {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  branch       Branch        @relation(fields: [branchId], references: [id])
-  shopCustomer ShopCustomer? @relation(fields: [shopCustomerId], references: [id])
-  vehicles     Vehicle[]
-  documents    Document[]
+  companyCode       String?
+  branchLocation    String?
+  branchCode        String?
+  country           String?
+  creditTerms       String?
+  customerGroupId   String?
+  quotationTemplate String?
+  arrBook           String?
+
+  branch        Branch         @relation(fields: [branchId], references: [id])
+  shopCustomer  ShopCustomer?  @relation(fields: [shopCustomerId], references: [id])
+  customerGroup CustomerGroup? @relation(fields: [customerGroupId], references: [id])
+  vehicles           Vehicle[]
+  documents          Document[]
+  salesOrders        SalesOrder[]
+  truckAssignments   TruckCustomerAssignment[]
 
   @@index([branchId])
   @@map("customers")
@@ -410,6 +445,8 @@ model Supplier {
   branchId     String
   companyName  String
   contactName  String?
+  shortForm    String?
+  code         String?
   phone        String?
   email        String?
   address      String?
@@ -578,6 +615,7 @@ model Order {
   contactPhone    String
   contactEmail    String?
   deliveryAddress String
+  deliveryPostcode String?
   deliveryDate    DateTime
   deliverySlot    String
   notes           String?
@@ -737,5 +775,285 @@ model Setting {
   value String
 
   @@map("settings")
+}
+
+// ─── CUSTOMER GROUP ───────────────────────────────────────
+model CustomerGroup {
+  id                String   @id @default(cuid())
+  branchId          String
+  name              String
+  term              Int      @default(7)
+  country           String?
+  priceType         String?
+  method            String?
+  value             Decimal? @db.Decimal(12, 2)
+  quotationTemplate String?
+  custValidation    String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  branch             Branch              @relation(fields: [branchId], references: [id])
+  customers          Customer[]
+  pricingBoardGroups PricingBoardGroup[]
+
+  @@unique([branchId, name])
+  @@index([branchId])
+  @@map("customer_groups")
+}
+
+// ─── QUOTATION TYPE ───────────────────────────────────────
+model QuotationType {
+  id           String  @id @default(cuid())
+  branchId     String
+  name         String
+  templateName String?
+  isActive     Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@unique([branchId, name])
+  @@index([branchId])
+  @@map("quotation_types")
+}
+
+// ─── PACKING LIST TEMPLATE ───────────────────────────────
+model PackingListTemplate {
+  id           String  @id @default(cuid())
+  branchId     String
+  name         String
+  templateName String?
+  isActive     Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@unique([branchId, name])
+  @@index([branchId])
+  @@map("packing_list_templates")
+}
+
+// ─── PRODUCT CLEARANCE ────────────────────────────────────
+model ProductClearanceList {
+  id          String          @id @default(cuid())
+  branchId    String
+  date        DateTime        @db.Date
+  status      ClearanceStatus @default(OPEN)
+  createdById String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  branch    Branch                  @relation(fields: [branchId], references: [id])
+  createdBy User                    @relation("ClearanceListCreatedBy", fields: [createdById], references: [id])
+  items     ProductClearanceItem[]
+
+  @@unique([branchId, date])
+  @@index([branchId])
+  @@index([date])
+  @@map("product_clearance_lists")
+}
+
+model ProductClearanceItem {
+  id               String  @id @default(cuid())
+  clearanceListId  String
+  stockItemId      String
+  quantity         Int     @default(0)
+  reason           String?
+  cleared          Boolean @default(false)
+
+  clearanceList ProductClearanceList @relation(fields: [clearanceListId], references: [id], onDelete: Cascade)
+  stockItem     StockItem            @relation(fields: [stockItemId], references: [id])
+
+  @@unique([clearanceListId, stockItemId])
+  @@index([clearanceListId])
+  @@map("product_clearance_items")
+}
+
+enum ClearanceStatus {
+  OPEN
+  CLOSED
+}
+
+// ─── TRUCK ────────────────────────────────────────────────
+model Truck {
+  id          String   @id @default(cuid())
+  branchId    String
+  code        String
+  description String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branch              Branch                   @relation(fields: [branchId], references: [id])
+  customerAssignments TruckCustomerAssignment[]
+
+  @@unique([branchId, code])
+  @@index([branchId])
+  @@map("trucks")
+}
+
+model TruckCustomerAssignment {
+  id         String @id @default(cuid())
+  truckId    String
+  customerId String
+  level      Int    @default(0)
+
+  truck    Truck    @relation(fields: [truckId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([truckId, customerId])
+  @@index([truckId])
+  @@index([customerId])
+  @@map("truck_customer_assignments")
+}
+
+// ─── PRICING BOARD ────────────────────────────────────────
+model PricingBoard {
+  id          String             @id @default(cuid())
+  branchId    String
+  name        String
+  termDays    Int
+  validFrom   DateTime
+  validTo     DateTime
+  remarks     String?
+  status      PricingBoardStatus @default(DRAFT)
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  branch    Branch              @relation(fields: [branchId], references: [id])
+  createdBy User                @relation("PricingBoardCreatedBy", fields: [createdById], references: [id])
+  items     PricingBoardItem[]
+  groups    PricingBoardGroup[]
+
+  @@index([branchId])
+  @@index([termDays])
+  @@map("pricing_boards")
+}
+
+model PricingBoardItem {
+  id             String  @id @default(cuid())
+  pricingBoardId String
+  stockItemId    String
+  price          Decimal @db.Decimal(12, 2)
+
+  pricingBoard PricingBoard @relation(fields: [pricingBoardId], references: [id], onDelete: Cascade)
+  stockItem    StockItem    @relation(fields: [stockItemId], references: [id])
+
+  @@unique([pricingBoardId, stockItemId])
+  @@index([pricingBoardId])
+  @@map("pricing_board_items")
+}
+
+model PricingBoardGroup {
+  id              String @id @default(cuid())
+  pricingBoardId  String
+  customerGroupId String
+
+  pricingBoard  PricingBoard  @relation(fields: [pricingBoardId], references: [id], onDelete: Cascade)
+  customerGroup CustomerGroup @relation(fields: [customerGroupId], references: [id])
+
+  @@unique([pricingBoardId, customerGroupId])
+  @@index([pricingBoardId])
+  @@map("pricing_board_groups")
+}
+
+enum PricingBoardStatus {
+  DRAFT
+  PROCEED
+  EXPIRED
+}
+
+// ─── SALES ORDER ──────────────────────────────────────────
+model SalesOrder {
+  id                      String           @id @default(cuid())
+  branchId                String
+  salesOrderNumber        String
+  customerId              String?
+  customerName            String?
+  customerCompanyName     String?
+  customerCompanyCode     String?
+  customerBranchLocation  String?
+  customerBranchCode      String?
+  customerPhone           String?
+  customerEmail           String?
+  poNumber                String?
+  invoiceNumber           String?
+  deliveryDate            DateTime
+  deliverySlot            String
+  deliveryAddress         String?
+  truck                   String?
+  status                  SalesOrderStatus @default(PENDING)
+  subtotal                Decimal          @db.Decimal(12, 2) @default(0)
+  taxAmount               Decimal          @db.Decimal(12, 2) @default(0)
+  discountAmount          Decimal          @db.Decimal(12, 2) @default(0)
+  totalAmount             Decimal          @db.Decimal(12, 2) @default(0)
+  notes                   String?
+  createdById             String
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  branch    Branch           @relation(fields: [branchId], references: [id])
+  customer  Customer?        @relation(fields: [customerId], references: [id])
+  createdBy User             @relation("SalesOrderCreatedBy", fields: [createdById], references: [id])
+  items     SalesOrderItem[]
+
+  @@unique([branchId, salesOrderNumber])
+  @@index([branchId])
+  @@index([status])
+  @@index([deliveryDate])
+  @@index([salesOrderNumber])
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id              String  @id @default(cuid())
+  salesOrderId    String
+  stockItemId     String?
+  itemCode        String?
+  description     String
+  quantity        Decimal @db.Decimal(10, 3)
+  unit            String  @default("PCS")
+  unitPrice       Decimal @db.Decimal(12, 2) @default(0)
+  discountPercent Decimal @db.Decimal(5, 2)  @default(0)
+  taxRate         Decimal @db.Decimal(5, 2)  @default(0)
+  subtotal        Decimal @db.Decimal(12, 2) @default(0)
+  taxAmount       Decimal @db.Decimal(12, 2) @default(0)
+  total           Decimal @db.Decimal(12, 2) @default(0)
+  sortOrder       Int     @default(0)
+  notes           String?
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  stockItem  StockItem? @relation(fields: [stockItemId], references: [id])
+
+  @@index([salesOrderId])
+  @@map("sales_order_items")
+}
+
+model SalesOrderSetting {
+  id            String  @id @default(cuid())
+  branchId      String  @unique
+  prefix        String  @default("DO")
+  nextNumber    Int     @default(1)
+  paddingLength Int     @default(5)
+  includeMonth  Boolean @default(true)
+  yearFormat    String  @default("YY")
+  separator     String  @default("-")
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@map("sales_order_settings")
+}
+
+enum SalesOrderStatus {
+  PENDING
+  AWAITING_SHIPMENT
+  COMPLETED
+  RETURN_ORDER
+  COMBINED
+  CANCELLED
 }
 

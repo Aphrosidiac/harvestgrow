@@ -387,3 +387,246 @@ export async function getDriverPerformanceReport(
 
   return reply.send({ success: true, data: rows })
 }
+
+// ─── NEW REPORT ENDPOINTS ─────────────────────────────────
+
+export async function getExportImportReport(
+  request: FastifyRequest<{ Querystring: Record<string, any> }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const { date } = request.query as any
+  const targetDate = date || new Date().toISOString().slice(0, 10)
+
+  const trucks = await request.server.prisma.truck.findMany({
+    where: { branchId },
+    orderBy: { code: 'asc' },
+  })
+
+  const salesOrders = await request.server.prisma.salesOrder.findMany({
+    where: {
+      branchId,
+      deliveryDate: {
+        gte: new Date(targetDate),
+        lte: new Date(targetDate + 'T23:59:59.999Z'),
+      },
+    },
+    include: { items: true },
+  })
+
+  const data = trucks.map((t) => {
+    const truckOrders = salesOrders.filter((o) => o.truck === t.code)
+    const totalWeight = truckOrders.reduce((sum, o) =>
+      sum + o.items.reduce((s, i) => s + Number(i.quantity), 0), 0)
+    return {
+      id: t.id,
+      code: t.code,
+      description: t.description,
+      totalOrders: truckOrders.length,
+      totalWeight: Math.round(totalWeight * 1000) / 1000,
+    }
+  })
+
+  return reply.send({ success: true, data })
+}
+
+export async function getWastageSummary(
+  request: FastifyRequest<{ Querystring: Record<string, any> }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const { from, to, search } = request.query as any
+
+  if (!from || !to) {
+    return reply.send({ success: true, data: [] })
+  }
+
+  const where: Prisma.StockHistoryWhereInput = {
+    branchId,
+    type: 'OUT',
+    reason: { contains: 'wastage', mode: 'insensitive' },
+    createdAt: { gte: new Date(from), lte: new Date(to + 'T23:59:59.999Z') },
+    ...(search && {
+      stockItem: {
+        OR: [
+          { description: { contains: search, mode: 'insensitive' } },
+          { itemCode: { contains: search, mode: 'insensitive' } },
+        ],
+      },
+    }),
+  }
+
+  const data = await request.server.prisma.stockHistory.findMany({
+    where,
+    include: { stockItem: { select: { itemCode: true, description: true, uom: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  })
+
+  return reply.send({ success: true, data })
+}
+
+export async function getSupplyReturnSummary(
+  request: FastifyRequest<{ Querystring: Record<string, any> }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const { from, to, search } = request.query as any
+
+  if (!from || !to) {
+    return reply.send({ success: true, data: [] })
+  }
+
+  const where: Prisma.StockHistoryWhereInput = {
+    branchId,
+    type: 'IN',
+    reason: { contains: 'return', mode: 'insensitive' },
+    createdAt: { gte: new Date(from), lte: new Date(to + 'T23:59:59.999Z') },
+    ...(search && {
+      stockItem: {
+        OR: [
+          { description: { contains: search, mode: 'insensitive' } },
+          { itemCode: { contains: search, mode: 'insensitive' } },
+        ],
+      },
+    }),
+  }
+
+  const data = await request.server.prisma.stockHistory.findMany({
+    where,
+    include: { stockItem: { select: { itemCode: true, description: true, uom: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  })
+
+  return reply.send({ success: true, data })
+}
+
+export async function getSupplierSummary(
+  request: FastifyRequest<{ Querystring: Record<string, any> }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const { from, to, search } = request.query as any
+
+  if (!from || !to) {
+    return reply.send({ success: true, data: [] })
+  }
+
+  const where: Prisma.PurchaseInvoiceWhereInput = {
+    branchId,
+    issueDate: { gte: new Date(from), lte: new Date(to + 'T23:59:59.999Z') },
+    ...(search && {
+      supplier: {
+        OR: [
+          { companyName: { contains: search, mode: 'insensitive' } },
+          { code: { contains: search, mode: 'insensitive' } },
+        ],
+      },
+    }),
+  }
+
+  const invoices = await request.server.prisma.purchaseInvoice.findMany({
+    where,
+    include: { supplier: { select: { id: true, companyName: true, code: true } } },
+    orderBy: { issueDate: 'desc' },
+  })
+
+  const grouped = new Map<string, { supplier: any; totalAmount: number; invoiceCount: number }>()
+  for (const inv of invoices) {
+    const key = inv.supplierId
+    const entry = grouped.get(key) || { supplier: inv.supplier, totalAmount: 0, invoiceCount: 0 }
+    entry.totalAmount += Number(inv.totalAmount)
+    entry.invoiceCount++
+    grouped.set(key, entry)
+  }
+
+  return reply.send({ success: true, data: [...grouped.values()] })
+}
+
+export async function getLowMarginSummary(
+  request: FastifyRequest<{ Querystring: Record<string, any> }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const { from, to, search, threshold } = request.query as any
+
+  if (!from || !to) {
+    return reply.send({ success: true, data: [], threshold: 30 })
+  }
+
+  const marginThreshold = parseInt(threshold) || 30
+
+  const items = await request.server.prisma.stockItem.findMany({
+    where: {
+      branchId,
+      isActive: true,
+      ...(search && {
+        OR: [
+          { description: { contains: search, mode: 'insensitive' } },
+          { itemCode: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    },
+    select: { id: true, itemCode: true, description: true, uom: true, costPrice: true, sellPrice: true, quantity: true },
+  })
+
+  const alerts = items
+    .filter((item) => {
+      const cost = Number(item.costPrice)
+      const sell = Number(item.sellPrice)
+      if (sell === 0) return false
+      const margin = ((sell - cost) / sell) * 100
+      return margin < marginThreshold
+    })
+    .map((item) => ({
+      itemCode: item.itemCode,
+      description: item.description,
+      uom: item.uom,
+      balance: item.quantity,
+      costPrice: Number(item.costPrice),
+      sellPrice: Number(item.sellPrice),
+      margin: Math.round(((Number(item.sellPrice) - Number(item.costPrice)) / Number(item.sellPrice)) * 1000) / 10,
+    }))
+
+  return reply.send({ success: true, data: alerts, threshold: marginThreshold })
+}
+
+export async function getTruckMapReport(
+  request: FastifyRequest<{ Querystring: Record<string, any> }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const { date, truckId } = request.query as any
+
+  if (!date) {
+    return reply.send({ success: true, data: [], total: 0 })
+  }
+
+  const where: Prisma.TruckCustomerAssignmentWhereInput = {
+    truck: { branchId },
+    ...(truckId && { truckId }),
+  }
+
+  const assignments = await request.server.prisma.truckCustomerAssignment.findMany({
+    where,
+    include: {
+      truck: { select: { code: true, description: true } },
+      customer: { select: { name: true, companyName: true, companyCode: true, branchCode: true, branchLocation: true, country: true, phone: true } },
+    },
+    orderBy: [{ truck: { code: 'asc' } }, { level: 'asc' }],
+  })
+
+  const data = assignments.map((a) => ({
+    level: a.level,
+    shortCode: a.customer.branchCode || '',
+    state: a.customer.country || '',
+    city: a.customer.branchLocation || '',
+    customerCode: a.customer.companyCode || '',
+    companyName: a.customer.companyName || a.customer.name,
+    truck: a.truck.code,
+    contact: a.customer.phone || '',
+  }))
+
+  return reply.send({ success: true, data, total: data.length })
+}

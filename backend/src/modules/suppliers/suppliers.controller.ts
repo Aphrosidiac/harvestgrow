@@ -74,7 +74,8 @@ export async function createSupplier(
   reply: FastifyReply
 ) {
   const { branchId } = request.user
-  const { companyName, contactName, phone, email, address, bankName, bankAccount, notes } = request.body
+  const body = request.body as any
+  const { companyName, contactName, shortForm, code, phone, email, address, bankName, bankAccount, notes } = body
 
   if (!companyName?.trim()) {
     return reply.status(400).send({ success: false, message: 'Company name is required' })
@@ -85,6 +86,8 @@ export async function createSupplier(
       branchId,
       companyName: companyName.trim(),
       contactName: contactName?.trim() || null,
+      shortForm: shortForm?.trim() || null,
+      code: code?.trim() || null,
       phone: phone?.trim() || null,
       email: email?.trim() || null,
       address: address?.trim() || null,
@@ -115,7 +118,8 @@ export async function updateSupplier(
 ) {
   const { branchId } = request.user
   const { id } = request.params
-  const { companyName, contactName, phone, email, address, bankName, bankAccount, notes } = request.body
+  const body = request.body as any
+  const { companyName, contactName, shortForm, code, phone, email, address, bankName, bankAccount, notes } = body
 
   const existing = await request.server.prisma.supplier.findFirst({ where: { id, branchId } })
   if (!existing) {
@@ -127,6 +131,8 @@ export async function updateSupplier(
     data: {
       ...(companyName && { companyName: companyName.trim() }),
       ...(contactName !== undefined && { contactName: contactName?.trim() || null }),
+      ...(shortForm !== undefined && { shortForm: shortForm?.trim() || null }),
+      ...(code !== undefined && { code: code?.trim() || null }),
       ...(phone !== undefined && { phone: phone?.trim() || null }),
       ...(email !== undefined && { email: email?.trim() || null }),
       ...(address !== undefined && { address: address?.trim() || null }),

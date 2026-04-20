@@ -20,6 +20,7 @@ export async function listCustomers(
         { email: { contains: search, mode: 'insensitive' } },
         { vehicles: { some: { plate: { contains: search, mode: 'insensitive' } } } },
         { vehicles: { some: { model: { contains: search, mode: 'insensitive' } } } },
+        { companyCode: { contains: search, mode: 'insensitive' } },
       ],
     }),
   }
@@ -29,6 +30,7 @@ export async function listCustomers(
       where,
       include: {
         vehicles: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] },
+        customerGroup: true,
         _count: { select: { documents: true } },
       },
       orderBy: { name: 'asc' },
@@ -101,7 +103,8 @@ export async function createCustomer(
   reply: FastifyReply
 ) {
   const { branchId } = request.user
-  const { name, phone, email, companyName, vehicles } = request.body
+  const body = request.body as any
+  const { name, phone, email, companyName, vehicles, companyCode, branchLocation, branchCode, country, creditTerms, customerGroupId, quotationTemplate, arrBook, address } = body
 
   const customerName = name?.trim() || phone?.trim() || 'Walk-in'
 
@@ -112,6 +115,15 @@ export async function createCustomer(
       companyName: companyName?.trim() || null,
       phone: phone?.trim() || null,
       email: email?.trim() || null,
+      address: address?.trim() || null,
+      companyCode: companyCode?.trim() || null,
+      branchLocation: branchLocation?.trim() || null,
+      branchCode: branchCode?.trim() || null,
+      country: country?.trim() || null,
+      creditTerms: creditTerms?.trim() || null,
+      customerGroupId: customerGroupId || null,
+      quotationTemplate: quotationTemplate?.trim() || null,
+      arrBook: arrBook?.trim() || null,
       ...(vehicles?.length && {
         vehicles: {
           create: vehicles.map((v, i) => ({
@@ -138,7 +150,8 @@ export async function updateCustomer(
 ) {
   const { branchId } = request.user
   const { id } = request.params
-  const { name, phone, email, companyName } = request.body
+  const body = request.body as any
+  const { name, phone, email, companyName, address, companyCode, branchLocation, branchCode, country, creditTerms, customerGroupId, quotationTemplate, arrBook } = body
 
   const existing = await request.server.prisma.customer.findFirst({ where: { id, branchId } })
   if (!existing) {
@@ -152,6 +165,15 @@ export async function updateCustomer(
       ...(companyName !== undefined && { companyName: companyName?.trim() || null }),
       ...(phone !== undefined && { phone: phone?.trim() || null }),
       ...(email !== undefined && { email: email?.trim() || null }),
+      ...(address !== undefined && { address: address?.trim() || null }),
+      ...(companyCode !== undefined && { companyCode: companyCode?.trim() || null }),
+      ...(branchLocation !== undefined && { branchLocation: branchLocation?.trim() || null }),
+      ...(branchCode !== undefined && { branchCode: branchCode?.trim() || null }),
+      ...(country !== undefined && { country: country?.trim() || null }),
+      ...(creditTerms !== undefined && { creditTerms: creditTerms?.trim() || null }),
+      ...(customerGroupId !== undefined && { customerGroupId: customerGroupId || null }),
+      ...(quotationTemplate !== undefined && { quotationTemplate: quotationTemplate?.trim() || null }),
+      ...(arrBook !== undefined && { arrBook: arrBook?.trim() || null }),
     },
     include: { vehicles: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } },
   })

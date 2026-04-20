@@ -31,6 +31,14 @@ import shopRoutes from './modules/shop/shop.routes.js'
 import orderRoutes from './modules/orders/orders.routes.js'
 import productionRoutes from './modules/production/production.routes.js'
 import deliveryRoutes from './modules/delivery/delivery.routes.js'
+import salesOrderRoutes from './modules/sales-orders/sales-orders.routes.js'
+import customerGroupRoutes from './modules/customer-groups/customer-groups.routes.js'
+import pricingBoardRoutes from './modules/pricing-boards/pricing-boards.routes.js'
+import quotationTypeRoutes from './modules/quotation-types/quotation-types.routes.js'
+import packingListTemplateRoutes from './modules/packing-list-templates/packing-list-templates.routes.js'
+import productClearanceRoutes from './modules/product-clearance/product-clearance.routes.js'
+import truckRoutes from './modules/trucks/trucks.routes.js'
+import truckRouteRoutes from './modules/truck-routes/truck-routes.routes.js'
 
 const isProd = env.NODE_ENV === 'production'
 
@@ -85,6 +93,14 @@ async function start() {
   await app.register(orderRoutes, { prefix: '/api/v1/orders' })
   await app.register(productionRoutes, { prefix: '/api/v1/production' })
   await app.register(deliveryRoutes, { prefix: '/api/v1/delivery' })
+  await app.register(salesOrderRoutes, { prefix: '/api/v1/sales-orders' })
+  await app.register(customerGroupRoutes, { prefix: '/api/v1/customer-groups' })
+  await app.register(pricingBoardRoutes, { prefix: '/api/v1/pricing-boards' })
+  await app.register(quotationTypeRoutes, { prefix: '/api/v1/quotation-types' })
+  await app.register(packingListTemplateRoutes, { prefix: '/api/v1/packing-list-templates' })
+  await app.register(productClearanceRoutes, { prefix: '/api/v1/product-clearance' })
+  await app.register(truckRoutes, { prefix: '/api/v1/trucks' })
+  await app.register(truckRouteRoutes, { prefix: '/api/v1/truck-routes' })
 
   // Health check
   app.get('/api/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))

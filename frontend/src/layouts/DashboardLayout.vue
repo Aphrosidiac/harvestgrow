@@ -58,9 +58,6 @@
           >
             <component :is="item.icon" class="w-5 h-5" />
             <span class="flex-1">{{ item.label }}</span>
-            <span v-if="item.badgeKey === 'lowStock' && lowStockCount > 0" class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-semibold">
-              {{ lowStockCount }}
-            </span>
           </RouterLink>
         </template>
       </nav>
@@ -105,62 +102,50 @@
 import { ref, computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { LayoutDashboard, Package, Users, FileText, ClipboardList, AlertCircle, BarChart3, UserCog, LogOut, Menu, Truck, Wallet, CreditCard, ShieldCheck, TrendingUp, AlertTriangle, ShoppingCart, KanbanSquare, PackageCheck, User as UserIcon, ChevronDown } from 'lucide-vue-next'
+import { Package, Users, BarChart3, LogOut, Menu, TrendingUp, ShoppingCart, PackageCheck, ChevronDown } from 'lucide-vue-next'
 import AssistantWidget from '../components/AssistantWidget.vue'
-import { useStockStore } from '../stores/stock'
-import { onMounted } from 'vue'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const sidebarOpen = ref(false)
-const stockStore = useStockStore()
-const lowStockCount = ref(0)
-
-async function refreshLowStockCount() {
-  try {
-    const items = await stockStore.fetchLowStock()
-    lowStockCount.value = items.length
-  } catch {
-    lowStockCount.value = 0
-  }
-}
-
-onMounted(() => {
-  if (auth.isAuthenticated) refreshLowStockCount()
-})
 
 const allNavItems = [
-  { path: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER', 'PRODUCTION'] },
-  { path: '/app/take-order', label: 'Take Order', icon: ClipboardList, roles: ['ADMIN', 'MANAGER'] },
-  { path: '/app/production/board', label: 'Production Board', icon: KanbanSquare, roles: ['ADMIN', 'MANAGER', 'PRODUCTION'] },
-  { path: '/app/production/packaging', label: 'Packaging', icon: PackageCheck, roles: ['ADMIN', 'MANAGER', 'PACKER', 'PRODUCTION'] },
-  { path: '/app/orders', label: 'Orders', icon: ShoppingCart, roles: ['ADMIN', 'MANAGER', 'PRODUCTION', 'PACKER'] },
-  { path: '/app/delivery/dispatch', label: 'Dispatch', icon: Truck, roles: ['ADMIN', 'MANAGER'] },
-  { path: '/app/delivery/drivers', label: 'Drivers', icon: UserCog, roles: ['ADMIN'] },
-  { path: '/app/stock', label: 'Stock', icon: Package, roles: ['ADMIN', 'MANAGER', 'PRODUCTION'] },
-  { path: '/app/stock/daily-pricing', label: 'Daily Pricing', icon: TrendingUp, roles: ['ADMIN', 'MANAGER'] },
-  { path: '/app/stock/low-stock', label: 'Low Stock', icon: AlertTriangle, roles: ['ADMIN', 'MANAGER', 'PRODUCTION'], badgeKey: 'lowStock' },
-  { path: '/app/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'MANAGER'] },
-  { path: '/app/documents', label: 'Documents', icon: FileText, roles: ['ADMIN', 'MANAGER'] },
-  { path: '/app/debtors', label: 'Debtors', icon: AlertCircle, roles: ['ADMIN', 'MANAGER'] },
-  { path: '/app/suppliers', label: 'Suppliers', icon: Truck, roles: ['ADMIN', 'MANAGER'], section: 'Purchasing' },
-  { path: '/app/purchase-invoices', label: 'Purchase Invoices', icon: Wallet, roles: ['ADMIN', 'MANAGER'] },
-  { path: '/app/supplier-payments', label: 'A/P Payments', icon: CreditCard, roles: ['ADMIN', 'MANAGER'] },
+  { path: '/app/users/office', label: 'User (Office Use)', icon: Users, roles: ['ADMIN'] },
+  { path: '/app/sales-order', label: 'Sales Order', icon: ShoppingCart, roles: ['ADMIN', 'MANAGER'] },
   {
-    label: 'Reports', icon: BarChart3, roles: ['ADMIN', 'MANAGER'],
+    label: 'Master Data', icon: Package, roles: ['ADMIN', 'MANAGER'],
     children: [
-      { path: '/app/reports/payment-log', label: 'Payment Log' },
-      { path: '/app/reports/sales', label: 'Sales' },
-      { path: '/app/reports/orders', label: 'Orders' },
-      { path: '/app/reports/stock-movement', label: 'Stock Movement' },
-      { path: '/app/reports/price-history', label: 'Price History' },
-      { path: '/app/reports/drivers', label: 'Driver Performance' },
+      { path: '/app/master/customer', label: 'Customer' },
+      { path: '/app/master/customer-group', label: 'Customer Group' },
+      { path: '/app/master/product', label: 'Product' },
+      { path: '/app/master/quotation', label: 'Quotation' },
+      { path: '/app/master/packing-list', label: 'Packing List' },
+      { path: '/app/master/supplier-list', label: 'Supplier List' },
     ],
   },
-  { path: '/app/staff', label: 'Staff', icon: UserCog, roles: ['ADMIN'] },
-  { path: '/app/audit', label: 'Audit Logs', icon: ShieldCheck, roles: ['ADMIN'] },
-  { path: '/app/profile', label: 'Profile', icon: UserIcon, roles: ['ADMIN', 'MANAGER', 'PRODUCTION', 'PACKER', 'DRIVER'] },
+  { path: '/app/product-clearance', label: 'Product Clearance', icon: PackageCheck, roles: ['ADMIN', 'MANAGER'] },
+  {
+    label: 'Product Pricing', icon: TrendingUp, roles: ['ADMIN', 'MANAGER'],
+    children: [
+      { path: '/app/pricing/new', label: 'Pricing List New' },
+      { path: '/app/pricing/edit-board', label: 'Pricing Edit Board' },
+    ],
+  },
+  {
+    label: 'Report', icon: BarChart3, roles: ['ADMIN', 'MANAGER'],
+    children: [
+      { path: '/app/reports/truck', label: 'Truck' },
+      { path: '/app/reports/export-import', label: 'Export / Import' },
+      { path: '/app/reports/packing-list-summary', label: 'Packing List Summary' },
+      { path: '/app/reports/wastage-summary', label: 'Wastage Summary' },
+      { path: '/app/reports/supply-return-summary', label: 'Supply Return Summary' },
+      { path: '/app/reports/supplier-summary', label: 'Supplier Summary' },
+      { path: '/app/reports/low-margin-summary', label: 'Low Margin Summary' },
+      { path: '/app/reports/truck-map', label: 'Truck Map' },
+      { path: '/app/reports/truck-road', label: 'Truck Road' },
+    ],
+  },
 ]
 
 const navItems = computed(() =>
@@ -186,6 +171,26 @@ const isActive = (path: string) => route.path.startsWith(path)
 const pageTitle = computed(() => {
   const name = route.name as string
   if (name?.startsWith('stock')) return 'Stock Management'
+  if (name?.startsWith('user-office')) return 'User (Office)'
+  if (name?.startsWith('sales-order')) return 'Sales Order'
+  if (name === 'master-customer') return 'Customer'
+  if (name === 'master-customer-group') return 'Customer Group'
+  if (name === 'master-product') return 'Product'
+  if (name === 'master-quotation') return 'Quotation Management'
+  if (name === 'master-packing-list') return 'Packing List Management'
+  if (name === 'master-supplier-list') return 'Supplier Management'
+  if (name === 'product-clearance') return 'Product Clearance'
+  if (name === 'report-truck') return 'Truck Management'
+  if (name === 'report-export-import') return 'Export / Import Management'
+  if (name === 'report-packing-list-summary') return 'Packing List Summary'
+  if (name === 'report-wastage-summary') return 'Wastage Summary'
+  if (name === 'report-supply-return-summary') return 'Supply Return Summary'
+  if (name === 'report-supplier-summary') return 'Supplier Summary'
+  if (name === 'report-low-margin-summary') return 'Low Margin Summary'
+  if (name === 'report-truck-map') return 'Truck Map'
+  if (name === 'report-truck-road') return 'Truck Map Setting'
+  if (name === 'pricing-new') return 'Pricing List New'
+  if (name === 'pricing-edit-board') return 'Pricing Edit Board'
   if (name?.startsWith('staff')) return 'Staff Management'
   if (name?.startsWith('customer')) return 'Customers'
   if (name?.startsWith('document')) return 'Documents'

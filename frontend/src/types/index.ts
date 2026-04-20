@@ -1,10 +1,14 @@
+export type UserGroup = 'SUPER_ADMIN' | 'BOSS' | 'ADMIN' | 'INVENTORY_MANAGER'
+
 export interface User {
   id: string
+  username?: string
   email: string
   name: string
   phone?: string
   jobTitle?: string
   role: 'ADMIN' | 'MANAGER' | 'PRODUCTION' | 'PACKER' | 'DRIVER'
+  userGroup?: UserGroup | null
   branchId: string
   isActive?: boolean
   _count?: { foremanDocuments: number }
@@ -462,5 +466,60 @@ export interface CutoffInfo {
   todayCutoff: string
   isPastCutoff: boolean
   nextDeliveryDate: string
+}
+
+// ─── SALES ORDER ──────────────────────────────────────────
+export type SalesOrderStatus =
+  | 'PENDING' | 'AWAITING_SHIPMENT' | 'COMPLETED'
+  | 'RETURN_ORDER' | 'COMBINED' | 'CANCELLED'
+
+export interface SalesOrderItem {
+  id: string
+  salesOrderId: string
+  stockItemId?: string
+  itemCode?: string
+  description: string
+  quantity: number
+  unit: string
+  unitPrice: number
+  discountPercent: number
+  taxRate: number
+  subtotal: number
+  taxAmount: number
+  total: number
+  sortOrder: number
+  notes?: string
+}
+
+export interface SalesOrder {
+  id: string
+  branchId: string
+  salesOrderNumber: string
+  customerId?: string
+  customerName?: string
+  customerCompanyName?: string
+  customerCompanyCode?: string
+  customerBranchLocation?: string
+  customerBranchCode?: string
+  customerPhone?: string
+  customerEmail?: string
+  poNumber?: string
+  invoiceNumber?: string
+  deliveryDate: string
+  deliverySlot: string
+  deliveryAddress?: string
+  truck?: string
+  status: SalesOrderStatus
+  subtotal: number
+  taxAmount: number
+  discountAmount: number
+  totalAmount: number
+  notes?: string
+  createdBy?: { id: string; name: string }
+  customer?: Customer
+  items?: SalesOrderItem[]
+  _count?: { items: number }
+  createdAt: string
+  updatedAt: string
 }
 

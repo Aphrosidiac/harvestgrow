@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify'
-import { listStaff, getStaff, createStaff, updateStaff, resetPassword } from './staff.controller.js'
+import { listStaff, getStaff, createStaff, updateStaff, resetPassword, deleteStaff } from './staff.controller.js'
 import { requireRole } from '../../middleware/authorize.js'
 
 export default async function staffRoutes(fastify: FastifyInstance) {
@@ -10,5 +10,6 @@ export default async function staffRoutes(fastify: FastifyInstance) {
   fastify.get('/:id', getStaff)
   fastify.post('/', createStaff)
   fastify.put('/:id', updateStaff)
+  fastify.delete('/:id', deleteStaff)
   fastify.post('/:id/reset-password', resetPassword)
 }
