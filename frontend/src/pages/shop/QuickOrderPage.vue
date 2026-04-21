@@ -60,7 +60,7 @@
               placeholder="Search product..."
               class="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-olive/30"
               @focus="row.focused = true"
-              @blur="() => window.setTimeout(() => (row.focused = false), 200)"
+              @blur="blurRow(row)"
             />
             <div v-if="row.focused && row.query && matches(row.query).length" class="absolute z-10 top-full mt-1 w-full bg-white border border-stone-200 rounded-xl shadow-md max-h-60 overflow-auto">
               <button
@@ -135,6 +135,8 @@ interface Row { query: string; qty: number; product?: ShopProduct; cutStyle?: st
 const rows = reactive<Row[]>([{ query: '', qty: 1, focused: false }])
 
 function addRow() { rows.push({ query: '', qty: 1, focused: false }) }
+
+function blurRow(row: Row) { setTimeout(() => (row.focused = false), 200) }
 
 function matches(q: string): ShopProduct[] {
   const qq = q.toLowerCase()
