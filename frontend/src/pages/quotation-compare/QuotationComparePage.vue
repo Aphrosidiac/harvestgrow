@@ -119,7 +119,7 @@ import { ref, computed } from 'vue'
 import api from '../../lib/api'
 import { useToast } from '../../composables/useToast'
 import BaseButton from '../../components/base/BaseButton.vue'
-import { Upload, FileText, X, Sparkles, CheckCircle, Download } from 'lucide-vue-next'
+import { Upload, FileText, X, Sparkles, Download } from 'lucide-vue-next'
 
 const toast = useToast()
 

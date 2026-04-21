@@ -162,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import api from '../../lib/api'
 import { useToast } from '../../composables/useToast'
 import BaseButton from '../../components/base/BaseButton.vue'

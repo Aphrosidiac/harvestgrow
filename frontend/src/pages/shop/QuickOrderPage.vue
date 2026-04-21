@@ -60,7 +60,7 @@
               placeholder="Search product..."
               class="w-full rounded-xl border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-olive/30"
               @focus="row.focused = true"
-              @blur="() => setTimeout(() => (row.focused = false), 200)"
+              @blur="() => window.setTimeout(() => (row.focused = false), 200)"
             />
             <div v-if="row.focused && row.query && matches(row.query).length" class="absolute z-10 top-full mt-1 w-full bg-white border border-stone-200 rounded-xl shadow-md max-h-60 overflow-auto">
               <button
