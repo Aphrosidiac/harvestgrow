@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify'
 import {
   getCategories, getProducts, getProduct, getCutoff,
   createOrder, trackOrder, shopLogin, shopMe, getOrderInvoice,
+  priceCheck, shopMyOrders,
 } from './shop.controller.js'
 
 export default async function shopRoutes(fastify: FastifyInstance) {
@@ -17,6 +18,7 @@ export default async function shopRoutes(fastify: FastifyInstance) {
       'shop.whatsapp.link', 'shop.contact.email', 'shop.contact.phone',
       'shop.company.address', 'shop.company.phone',
       'shop.delivery.cutoffTime', 'shop.delivery.fee',
+      'shop.minOrderAmount', 'shop.serviceable.postcodes',
     ]
     const rows = await request.server.prisma.setting.findMany({ where: { key: { in: PUBLIC_KEYS } } })
     const settings: Record<string, string> = {}
@@ -26,10 +28,12 @@ export default async function shopRoutes(fastify: FastifyInstance) {
 
   // Orders
   fastify.post('/orders', createOrder)
+  fastify.post('/price-check', priceCheck)
   fastify.get('/orders/:orderNumber', trackOrder)
   fastify.get('/orders/:orderNumber/invoice', getOrderInvoice)
 
   // Shop customer auth
   fastify.post('/customers/login', shopLogin)
   fastify.get('/customers/me', { preHandler: [fastify.authenticate] }, shopMe)
+  fastify.get('/me/orders', { preHandler: [fastify.authenticate] }, shopMyOrders)
 }

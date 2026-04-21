@@ -40,6 +40,7 @@ model Branch {
   clearanceLists       ProductClearanceList[]
   quotationTypes       QuotationType[]
   packingListTemplates PackingListTemplate[]
+  supplierCategories   SupplierCategory[]
 
   @@map("branches")
 }
@@ -452,12 +453,14 @@ model Supplier {
   address      String?
   bankName     String?
   bankAccount  String?
-  notes        String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  notes              String?
+  supplierCategoryId String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   branch           Branch             @relation(fields: [branchId], references: [id])
+  supplierCategory SupplierCategory?  @relation(fields: [supplierCategoryId], references: [id])
   purchaseInvoices PurchaseInvoice[]
   payments         SupplierPayment[]
 
@@ -800,6 +803,61 @@ model CustomerGroup {
   @@unique([branchId, name])
   @@index([branchId])
   @@map("customer_groups")
+}
+
+// ─── WHATSAPP CHAT ────────────────────────────────────────
+model WhatsAppChat {
+  id            String            @id @default(cuid())
+  branchId      String
+  phone         String
+  contactName   String?
+  agentType     WhatsAppAgentType @default(CLIENT)
+  isActive      Boolean           @default(true)
+  lastMessageAt DateTime?
+  messageCount  Int               @default(0)
+  createdAt     DateTime          @default(now())
+
+  messages WhatsAppMessage[]
+
+  @@unique([branchId, phone])
+  @@index([branchId, agentType])
+  @@map("whatsapp_chats")
+}
+
+model WhatsAppMessage {
+  id        String   @id @default(cuid())
+  chatId    String
+  role      String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  chat WhatsAppChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@map("whatsapp_messages")
+}
+
+enum WhatsAppAgentType {
+  EMPLOYEE
+  CLIENT
+}
+
+// ─── SUPPLIER CATEGORY ────────────────────────────────────
+model SupplierCategory {
+  id          String   @id @default(cuid())
+  branchId    String
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branch    Branch     @relation(fields: [branchId], references: [id])
+  suppliers Supplier[]
+
+  @@unique([branchId, name])
+  @@index([branchId])
+  @@map("supplier_categories")
 }
 
 // ─── QUOTATION TYPE ───────────────────────────────────────

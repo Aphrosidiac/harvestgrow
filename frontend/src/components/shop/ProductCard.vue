@@ -43,7 +43,7 @@
         :options="product.cutOptions"
       />
       <div class="mt-auto flex items-center gap-2">
-        <QtyStepper v-model="qty" :min="1" />
+        <QtyStepper v-model="qty" :min="qtyMin" :step="qtyStep" />
         <button
           class="flex-1 bg-olive text-white rounded-full py-2 text-sm font-medium hover:bg-olive-dark transition-colors"
           @click="add"
@@ -65,7 +65,10 @@ import CutStylePicker from './CutStylePicker.vue'
 const props = defineProps<{ product: ShopProduct }>()
 const cart = useCartStore()
 
-const qty = ref(1)
+const isKg = computed(() => (props.product.unit || '').toLowerCase() === 'kg')
+const qtyStep = computed(() => (isKg.value ? 0.5 : 1))
+const qtyMin = computed(() => (isKg.value ? 0.5 : 1))
+const qty = ref(isKg.value ? 0.5 : 1)
 const cutStyle = ref<string | undefined>(props.product.cutOptions?.[0])
 const imgFailed = ref(false)
 

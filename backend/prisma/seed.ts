@@ -110,11 +110,34 @@ async function main() {
   const LEAFY_CUT = JSON.stringify(['whole', 'sliced', 'diced', 'chopped'])
   const leafyCodes = new Set(['VEG-SAWI', 'VEG-KKG', 'VEG-PKC', 'VEG-KLN'])
 
+  // Map specific stock codes to product images; leafy greens → product-01, root/beancurd/noodles cycle
+  const imageMap: Record<string, string> = {
+    'VEG-SAWI': '/images/products/product-01.png',
+    'VEG-KKG':  '/images/products/product-01.png',
+    'VEG-PKC':  '/images/products/product-02.png',
+    'VEG-KLN':  '/images/products/product-02.png',
+    'VEG-CUC':  '/images/products/product-03.png',
+    'VEG-BG':   '/images/products/product-03.png',
+    'OWN-HB01': '/images/products/product-04.png',
+    'MSH-SHI':  '/images/products/product-05.png',
+    'MSH-OYS':  '/images/products/product-05.png',
+    'MSH-ENO':  '/images/products/product-05.png',
+    'BCD-TG':   '/images/products/product-06.png',
+    'BCD-TK':   '/images/products/product-06.png',
+    'BCD-FU':   '/images/products/product-06.png',
+    'NDL-MP':   '/images/products/product-04.png',
+    'NDL-KT':   '/images/products/product-04.png',
+    'NDL-MH':   '/images/products/product-04.png',
+    'PKG-BAG1': '/images/products/product-02.png',
+    'PKG-BOX1': '/images/products/product-02.png',
+    'PRC-CUT1': '/images/products/product-03.png',
+    'PRC-STR':  '/images/products/product-03.png',
+  }
+
   const stockRecords: Record<string, { id: string; sellPrice: number; uom: string; desc: string }> = {}
   for (const item of stockItems) {
     const catId = catMap[item.cat]
-    const slug = item.code.toLowerCase().replace(/[^a-z0-9]/g, '-')
-    const imageUrl = `/images/products/${slug}.jpg`
+    const imageUrl = imageMap[item.code] || '/images/products/product-01.png'
     const effCut = leafyCodes.has(item.code) ? LEAFY_CUT : (item.cutOptions ?? null)
     const rec = await prisma.stockItem.upsert({
       where: { branchId_itemCode: { branchId: branch.id, itemCode: item.code } },
@@ -221,7 +244,7 @@ async function main() {
 
   // ─── Settings ───────────────────────────────────────────
   const settings = [
-    { key: 'shop.delivery.cutoffTime', value: '14:00' },
+    { key: 'shop.delivery.cutoffTime', value: '23:59' },
     { key: 'shop.delivery.fee', value: '0' },
     { key: 'shop.company.address', value: '5 Jalan Kempas Lama, 2/4 Kempas Lama, 81200 Johor Bahru, Johor, Malaysia' },
     { key: 'shop.company.phone', value: '+607-511 2696' },
@@ -233,6 +256,8 @@ async function main() {
     { key: 'invoice.bankAccount', value: '5123-4567-8901' },
     { key: 'invoice.bankAccountName', value: 'Harvest Grow Veg Sdn Bhd' },
     { key: 'shop.whatsapp.link', value: 'https://wa.me/60137779069?text=Hi%20HarvestGrow,%20I%20want%20to%20order...' },
+    { key: 'shop.minOrderAmount', value: '50' },
+    { key: 'shop.serviceable.postcodes', value: '81200,81300,81400,81450,81100,80100,80200' },
   ]
   for (const s of settings) {
     await prisma.setting.upsert({ where: { key: s.key }, update: { value: s.value }, create: s })

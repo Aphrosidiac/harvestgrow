@@ -102,7 +102,7 @@
 import { ref, computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { Package, Users, BarChart3, LogOut, Menu, TrendingUp, ShoppingCart, PackageCheck, ChevronDown } from 'lucide-vue-next'
+import { Package, Users, BarChart3, LogOut, Menu, TrendingUp, ShoppingCart, PackageCheck, ChevronDown, FileSearch, MessageCircle, Send } from 'lucide-vue-next'
 import AssistantWidget from '../components/AssistantWidget.vue'
 
 const auth = useAuthStore()
@@ -124,6 +124,10 @@ const allNavItems = [
       { path: '/app/master/supplier-list', label: 'Supplier List' },
     ],
   },
+  { path: '/app/whatsapp-agents', label: 'WhatsApp Agents', icon: MessageCircle, roles: ['ADMIN'] },
+  { path: '/app/whatsapp-settings', label: 'WhatsApp Settings', icon: MessageCircle, roles: ['ADMIN'] },
+  { path: '/app/quotation-broadcast', label: 'Quotation Broadcast', icon: Send, roles: ['ADMIN', 'MANAGER'] },
+  { path: '/app/quotation-compare', label: 'Quotation Compare', icon: FileSearch, roles: ['ADMIN', 'MANAGER'] },
   { path: '/app/product-clearance', label: 'Product Clearance', icon: PackageCheck, roles: ['ADMIN', 'MANAGER'] },
   {
     label: 'Product Pricing', icon: TrendingUp, roles: ['ADMIN', 'MANAGER'],
@@ -179,6 +183,10 @@ const pageTitle = computed(() => {
   if (name === 'master-quotation') return 'Quotation Management'
   if (name === 'master-packing-list') return 'Packing List Management'
   if (name === 'master-supplier-list') return 'Supplier Management'
+  if (name === 'whatsapp-agents') return 'WhatsApp AI Agents'
+  if (name === 'whatsapp-settings') return 'WhatsApp Settings'
+  if (name === 'quotation-broadcast') return 'Quotation Broadcast'
+  if (name === 'quotation-compare') return 'Quotation Compare'
   if (name === 'product-clearance') return 'Product Clearance'
   if (name === 'report-truck') return 'Truck Management'
   if (name === 'report-export-import') return 'Export / Import Management'

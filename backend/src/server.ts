@@ -37,6 +37,13 @@ import pricingBoardRoutes from './modules/pricing-boards/pricing-boards.routes.j
 import quotationTypeRoutes from './modules/quotation-types/quotation-types.routes.js'
 import packingListTemplateRoutes from './modules/packing-list-templates/packing-list-templates.routes.js'
 import productClearanceRoutes from './modules/product-clearance/product-clearance.routes.js'
+import multipart from '@fastify/multipart'
+import quotationCompareRoutes from './modules/quotation-compare/quotation-compare.routes.js'
+import whatsappRoutes from './modules/whatsapp/whatsapp.routes.js'
+import whatsappAgentRoutes from './modules/whatsapp-agents/agent.routes.js'
+import * as agentService from './modules/whatsapp-agents/agent.service.js'
+import * as waService from './modules/whatsapp/whatsapp.service.js'
+import quotationBroadcastRoutes from './modules/quotation-broadcast/quotation-broadcast.routes.js'
 import truckRoutes from './modules/trucks/trucks.routes.js'
 import truckRouteRoutes from './modules/truck-routes/truck-routes.routes.js'
 
@@ -55,6 +62,7 @@ async function start() {
     credentials: true,
   })
   await app.register(formbody)
+  await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024, files: 10 } })
   await app.register(prismaPlugin)
   await app.register(redisPlugin)
 
@@ -96,11 +104,19 @@ async function start() {
   await app.register(salesOrderRoutes, { prefix: '/api/v1/sales-orders' })
   await app.register(customerGroupRoutes, { prefix: '/api/v1/customer-groups' })
   await app.register(pricingBoardRoutes, { prefix: '/api/v1/pricing-boards' })
+  await app.register(quotationCompareRoutes, { prefix: '/api/v1/quotation-compare' })
+  await app.register(whatsappRoutes, { prefix: '/api/v1/whatsapp' })
+  await app.register(whatsappAgentRoutes, { prefix: '/api/v1/whatsapp-agents' })
+  await app.register(quotationBroadcastRoutes, { prefix: '/api/v1/quotation-broadcast' })
   await app.register(quotationTypeRoutes, { prefix: '/api/v1/quotation-types' })
   await app.register(packingListTemplateRoutes, { prefix: '/api/v1/packing-list-templates' })
   await app.register(productClearanceRoutes, { prefix: '/api/v1/product-clearance' })
   await app.register(truckRoutes, { prefix: '/api/v1/trucks' })
   await app.register(truckRouteRoutes, { prefix: '/api/v1/truck-routes' })
+
+  // WhatsApp AI Agent hook
+  agentService.init(app.prisma)
+  waService.onMessage(agentService.processMessage)
 
   // Health check
   app.get('/api/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }))

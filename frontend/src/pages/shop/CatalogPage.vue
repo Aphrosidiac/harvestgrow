@@ -5,7 +5,7 @@
         <h1 class="text-2xl font-semibold text-olive">{{ title }}</h1>
         <p class="text-sm text-stone-500 mt-1">{{ shop.products.length }} products</p>
       </div>
-      <div class="flex flex-wrap gap-2">
+      <div class="flex md:flex-wrap gap-2 overflow-x-auto flex-nowrap whitespace-nowrap -mx-2 px-2 pb-1">
         <button
           class="text-sm px-3 py-1.5 rounded-full border transition-colors"
           :class="!activeCatId ? 'bg-olive text-white border-olive' : 'bg-white text-stone-600 border-stone-200 hover:border-olive'"

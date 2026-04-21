@@ -145,6 +145,36 @@ export async function getCutoff(request: FastifyRequest, reply: FastifyReply) {
   })
 }
 
+// ─── price-check ──────────────────────────────────────────
+const priceCheckSchema = z.object({
+  lines: z.array(z.object({
+    stockItemId: z.string().min(1),
+    clientUnitPrice: z.number(),
+  })).min(1),
+})
+
+export async function priceCheck(request: FastifyRequest, reply: FastifyReply) {
+  const parse = priceCheckSchema.safeParse(request.body)
+  if (!parse.success) return reply.status(400).send({ success: false, message: 'Invalid payload' })
+  const { lines } = parse.data
+  const items = await request.server.prisma.stockItem.findMany({
+    where: { id: { in: lines.map((l) => l.stockItemId) } },
+    select: { id: true, description: true, sellPrice: true },
+  })
+  const itemMap = new Map(items.map((i: any) => [i.id, i]))
+  const changed: Array<{ stockItemId: string; itemName: string; oldPrice: number; newPrice: number }> = []
+  let unchanged = 0
+  for (const l of lines) {
+    const it: any = itemMap.get(l.stockItemId)
+    if (!it) continue
+    const newPrice = Number(it.sellPrice)
+    if (Math.abs(newPrice - l.clientUnitPrice) > 0.005) {
+      changed.push({ stockItemId: l.stockItemId, itemName: it.description, oldPrice: l.clientUnitPrice, newPrice })
+    } else { unchanged++ }
+  }
+  return reply.send({ success: true, data: { changed, unchanged } })
+}
+
 // ─── create order ──────────────────────────────────────────
 
 const createOrderSchema = z.object({
@@ -154,6 +184,7 @@ const createOrderSchema = z.object({
     email: z.string().email().optional(),
   }),
   deliveryAddress: z.string().min(3),
+  deliveryPostcode: z.string().optional(),
   deliverySlot: z.enum(['AM', 'PM']),
   notes: z.string().optional(),
   lines: z
@@ -185,6 +216,16 @@ export async function createOrder(
   const cutoff = await computeCutoff(prisma)
   const deliveryDate = new Date(cutoff.nextDeliveryDate + 'T00:00:00.000Z')
   const deliveryFee = Number(await getSetting(prisma, 'shop.delivery.fee', '0'))
+  const minOrderAmount = Number(await getSetting(prisma, 'shop.minOrderAmount', '0'))
+  const serviceablePostcodesRaw = await getSetting(prisma, 'shop.serviceable.postcodes', '')
+  const serviceablePostcodes = serviceablePostcodesRaw.split(',').map((s) => s.trim()).filter(Boolean)
+
+  // Validate postcode
+  if (serviceablePostcodes.length > 0 && body.deliveryPostcode) {
+    if (!serviceablePostcodes.includes(body.deliveryPostcode.trim())) {
+      return reply.status(400).send({ success: false, error: 'AREA_NOT_SERVICEABLE', message: `We don't deliver to ${body.deliveryPostcode} yet.` })
+    }
+  }
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -215,6 +256,13 @@ export async function createOrder(
         })
       }
       subtotal = Number(subtotal.toFixed(2))
+      if (minOrderAmount > 0 && subtotal < minOrderAmount) {
+        const err: any = new Error(`Minimum order is RM ${minOrderAmount.toFixed(2)}`)
+        err.code = 'BELOW_MINIMUM'
+        err.minimum = minOrderAmount
+        err.subtotal = subtotal
+        throw err
+      }
       const total = Number((subtotal + deliveryFee).toFixed(2))
 
       // Find/create ShopCustomer
@@ -264,6 +312,7 @@ export async function createOrder(
           contactPhone: body.contact.phone,
           contactEmail: body.contact.email,
           deliveryAddress: body.deliveryAddress,
+          deliveryPostcode: body.deliveryPostcode || null,
           deliveryDate,
           deliverySlot: body.deliverySlot,
           notes: body.notes,
@@ -290,8 +339,24 @@ export async function createOrder(
     })
   } catch (err: any) {
     request.log.error({ err }, 'createOrder failed')
+    if (err.code === 'BELOW_MINIMUM') {
+      return reply.status(400).send({ success: false, error: 'BELOW_MINIMUM', minimum: err.minimum, subtotal: err.subtotal, message: err.message })
+    }
     return reply.status(400).send({ success: false, message: err.message || 'Order failed' })
   }
+}
+
+// ─── shop customer: my orders ─────────────────────────────
+export async function shopMyOrders(request: FastifyRequest, reply: FastifyReply) {
+  const { userId, role } = request.user as any
+  if (role !== 'SHOP_CUSTOMER') return reply.status(401).send({ success: false, message: 'Unauthorized' })
+  const orders = await request.server.prisma.order.findMany({
+    where: { shopCustomerId: userId },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    include: { lines: true },
+  })
+  return reply.send({ success: true, data: orders })
 }
 
 export async function getOrderInvoice(

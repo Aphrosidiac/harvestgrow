@@ -202,10 +202,10 @@
       <div class="px-8 py-6">
         <p v-if="doc.documentType === 'INVOICE'" class="text-xs font-bold text-gray-700 text-right mb-2">RECIPIENT'S SIGNATURE</p>
         <div class="grid grid-cols-3 gap-6 items-end">
-          <!-- Left: Stamp -->
-          <div class="text-center">
-            <img src="/stamp-company.png" alt="Company Stamp" class="h-20 mx-auto opacity-80" />
-            <p class="text-xs font-bold text-gray-700 mt-2">AUTHORISED SIGNATORY</p>
+          <!-- Left: Signature line -->
+          <div>
+            <div class="h-12 border-b border-gray-400 mb-3"></div>
+            <p class="text-xs font-bold text-gray-700 text-center">AUTHORISED SIGNATORY</p>
           </div>
           <!-- Center: E&O.E. + page -->
           <div class="text-center">

@@ -10,6 +10,7 @@
 
         <nav class="hidden md:flex items-center gap-5 text-sm text-stone-600">
           <RouterLink to="/shop" class="hover:text-olive">Shop</RouterLink>
+          <RouterLink to="/quick-order" class="hover:text-olive font-medium">Quick Order</RouterLink>
           <RouterLink to="/track" class="hover:text-olive">Track Order</RouterLink>
         </nav>
 
@@ -24,6 +25,15 @@
           </form>
         </div>
 
+        <button
+          type="button"
+          class="sm:hidden text-stone-600 hover:text-olive"
+          aria-label="Toggle search"
+          @click="mobileSearchOpen = !mobileSearchOpen"
+        >
+          <Search class="w-5 h-5" />
+        </button>
+
         <RouterLink to="/cart" class="relative text-stone-600 hover:text-olive">
           <ShoppingCart class="w-6 h-6" />
           <span
@@ -35,15 +45,55 @@
         <RouterLink
           v-if="!shop.shopToken"
           to="/account/login"
-          class="text-sm text-stone-600 hover:text-olive"
+          class="text-sm text-stone-600 hover:text-olive hidden sm:inline"
         >Login</RouterLink>
         <RouterLink
           v-else
           to="/account"
-          class="text-sm text-stone-600 hover:text-olive"
+          class="text-sm text-stone-600 hover:text-olive hidden sm:inline"
         >Account</RouterLink>
       </div>
+
+      <!-- Mobile inline search -->
+      <div v-if="mobileSearchOpen" class="sm:hidden border-t border-stone-200 px-4 py-2 bg-white">
+        <form @submit.prevent="onSearch">
+          <input
+            v-model="search"
+            type="search"
+            placeholder="Search fresh produce..."
+            class="w-full rounded-full border border-stone-200 bg-cream px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-olive/30"
+            autofocus
+          />
+        </form>
+      </div>
+
+      <!-- Mobile nav row -->
+      <div class="md:hidden border-t border-stone-200 px-4 py-2 bg-white flex items-center gap-4 text-xs text-stone-600">
+        <RouterLink to="/shop" class="hover:text-olive">Shop</RouterLink>
+        <RouterLink to="/quick-order" class="text-olive font-medium">Quick Order</RouterLink>
+        <RouterLink to="/track" class="hover:text-olive">Track</RouterLink>
+        <RouterLink v-if="!shop.shopToken" to="/account/login" class="ml-auto">Login</RouterLink>
+        <RouterLink v-else to="/account" class="ml-auto">Account</RouterLink>
+      </div>
     </header>
+
+    <!-- Cutoff countdown strip -->
+    <div
+      v-if="cutoffStripVisible && shop.cutoff"
+      class="bg-olive/10 border-b border-olive/20 text-stone-700 text-sm"
+    >
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-3">
+        <template v-if="shop.cutoff.isPastCutoff">
+          <span>Today's cutoff passed. Orders will deliver tomorrow.</span>
+        </template>
+        <template v-else>
+          <span>&#x23F0; Order within <strong class="text-olive">{{ countdownText }}</strong> for same-day delivery</span>
+        </template>
+        <button class="ml-auto text-stone-500 hover:text-stone-800" aria-label="Dismiss" @click="dismissCutoff">
+          <X class="w-4 h-4" />
+        </button>
+      </div>
+    </div>
 
     <main class="flex-1">
       <RouterView />
@@ -91,9 +141,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
-import { ShoppingCart, MessageCircle } from 'lucide-vue-next'
+import { ShoppingCart, MessageCircle, Search, X } from 'lucide-vue-next'
 import { useCartStore } from '../stores/cart'
 import { useShopStore } from '../stores/shop'
 import shopApi from '../lib/shop-api'
@@ -103,12 +153,43 @@ const shop = useShopStore()
 const router = useRouter()
 const search = ref('')
 const settings = ref<Record<string, string>>({})
+const mobileSearchOpen = ref(false)
 
 const FALLBACK_WHATSAPP = 'https://wa.me/60137779069?text=Hi%20HarvestGrow,%20I%20want%20to%20order...'
 const whatsappLink = computed(() => settings.value['shop.whatsapp.link'] || FALLBACK_WHATSAPP)
 
+// ─── Cutoff countdown ────────────────────────────────
+const now = ref(Date.now())
+let tickTimer: ReturnType<typeof setInterval> | null = null
+const dismissedKey = computed(() => {
+  if (!shop.cutoff) return null
+  // Use today's date in Malaysia for dismissal scoping
+  return `hg_cutoff_dismissed_${shop.cutoff.nextDeliveryDate}`
+})
+const dismissed = ref(false)
+const cutoffStripVisible = computed(() => !!shop.cutoff && !dismissed.value)
+
+const countdownText = computed(() => {
+  if (!shop.cutoff) return ''
+  const cutoffMs = new Date(shop.cutoff.todayCutoff).getTime()
+  const delta = cutoffMs - now.value
+  if (delta <= 0) return '0h 0m'
+  const totalMins = Math.floor(delta / 60000)
+  const h = Math.floor(totalMins / 60)
+  const m = totalMins % 60
+  return `${h}h ${m}m`
+})
+
+function dismissCutoff() {
+  dismissed.value = true
+  if (dismissedKey.value) {
+    try { localStorage.setItem(dismissedKey.value, '1') } catch { /* noop */ }
+  }
+}
+
 function onSearch() {
   router.push({ path: '/shop', query: search.value ? { search: search.value } : {} })
+  mobileSearchOpen.value = false
 }
 
 onMounted(async () => {
@@ -116,12 +197,13 @@ onMounted(async () => {
     const { data } = await shopApi.get('/settings')
     settings.value = data.data || {}
   } catch { /* noop */ }
+  try {
+    await shop.fetchCutoff()
+    if (dismissedKey.value && localStorage.getItem(dismissedKey.value) === '1') {
+      dismissed.value = true
+    }
+  } catch { /* noop */ }
+  tickTimer = setInterval(() => { now.value = Date.now() }, 60000)
 })
+onUnmounted(() => { if (tickTimer) clearInterval(tickTimer) })
 </script>
-
-<style scoped>
-.bg-olive { background-color: #6b7a3d; }
-.text-olive { color: #6b7a3d; }
-.bg-cream { background-color: #f5ebe2; }
-.text-cream { color: #f5ebe2; }
-</style>

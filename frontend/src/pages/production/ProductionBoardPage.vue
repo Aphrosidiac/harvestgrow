@@ -13,7 +13,10 @@
       <label class="flex items-center gap-1.5 text-sm text-stone-600">
         <input type="checkbox" v-model="showCompleted" /> Show completed
       </label>
-      <button @click="refresh" class="ml-auto bg-green-600 text-white rounded-lg px-3 py-1.5 text-sm flex items-center gap-1.5">
+      <RouterLink to="/app/shop-display" target="_blank" class="ml-auto bg-stone-900 text-white rounded-lg px-3 py-1.5 text-sm flex items-center gap-1.5 hover:bg-stone-800">
+        <Monitor class="w-4 h-4" /> Shop Display
+      </RouterLink>
+      <button @click="refresh" class="bg-green-600 text-white rounded-lg px-3 py-1.5 text-sm flex items-center gap-1.5">
         <RefreshCw class="w-4 h-4" /> Refresh
       </button>
     </div>
@@ -90,7 +93,8 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { RefreshCw } from 'lucide-vue-next'
+import { RefreshCw, Monitor } from 'lucide-vue-next'
+import { RouterLink } from 'vue-router'
 import { useProductionStore } from '../../stores/production'
 import OrderDrawer from './OrderDrawer.vue'
 import type { BoardCard, OrderStatus } from '../../types'
