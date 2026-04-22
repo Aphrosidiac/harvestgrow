@@ -83,90 +83,84 @@
         </div>
       </div>
 
-      <!-- Action Items + Activity -->
-      <div class="grid lg:grid-cols-3 gap-6 mb-6">
-        <!-- Action Items (2/3) -->
-        <div class="lg:col-span-2 space-y-4">
-          <!-- Overdue -->
-          <BaseCard v-if="dashboard.actionItems?.overdue?.length" title="Overdue Invoices">
-            <div class="space-y-2">
-              <RouterLink
-                v-for="inv in dashboard.actionItems.overdue"
-                :key="inv.id"
-                :to="`/app/documents/${inv.id}`"
-                class="flex items-center justify-between py-2 border-b border-stone-200 last:border-0 hover:bg-stone-200/30 -mx-2 px-2 rounded transition-colors"
-              >
-                <div>
-                  <span class="font-mono text-red-400 text-sm">{{ inv.documentNumber }}</span>
-                  <span class="text-stone-500 text-sm ml-2">{{ inv.customerName }}</span>
-                </div>
-                <div class="text-right">
-                  <span class="text-stone-700 text-sm font-medium">RM {{ (Number(inv.totalAmount) - Number(inv.paidAmount)).toFixed(2) }}</span>
-                  <p class="text-red-400 text-xs">Due {{ fmtDate(inv.dueDate) }}</p>
-                </div>
-              </RouterLink>
-            </div>
-          </BaseCard>
+      <!-- Action Items (only rendered when there's content) -->
+      <div v-if="hasActionItems" class="grid lg:grid-cols-2 gap-6 mb-6">
+        <BaseCard v-if="dashboard.actionItems?.overdue?.length" title="Overdue Invoices">
+          <div class="space-y-2">
+            <RouterLink
+              v-for="inv in dashboard.actionItems.overdue"
+              :key="inv.id"
+              :to="`/app/documents/${inv.id}`"
+              class="flex items-center justify-between py-2 border-b border-stone-200 last:border-0 hover:bg-stone-200/30 -mx-2 px-2 rounded transition-colors"
+            >
+              <div>
+                <span class="font-mono text-red-400 text-sm">{{ inv.documentNumber }}</span>
+                <span class="text-stone-500 text-sm ml-2">{{ inv.customerName }}</span>
+              </div>
+              <div class="text-right">
+                <span class="text-stone-700 text-sm font-medium">RM {{ (Number(inv.totalAmount) - Number(inv.paidAmount)).toFixed(2) }}</span>
+                <p class="text-red-400 text-xs">Due {{ fmtDate(inv.dueDate) }}</p>
+              </div>
+            </RouterLink>
+          </div>
+        </BaseCard>
 
-          <!-- Pending Quotations -->
-          <BaseCard v-if="dashboard.actionItems?.pendingQuotations?.length" title="Pending Quotations">
-            <div class="space-y-2">
-              <RouterLink
-                v-for="qt in dashboard.actionItems.pendingQuotations"
-                :key="qt.id"
-                :to="`/app/documents/${qt.id}`"
-                class="flex items-center justify-between py-2 border-b border-stone-200 last:border-0 hover:bg-stone-200/30 -mx-2 px-2 rounded transition-colors"
-              >
-                <div>
-                  <span class="font-mono text-green-600 text-sm">{{ qt.documentNumber }}</span>
-                  <span class="text-stone-500 text-sm ml-2">{{ qt.customerName }}</span>
-                  <BaseBadge :color="qt.status === 'APPROVED' ? 'green' : 'blue'" class="ml-2">{{ qt.status }}</BaseBadge>
-                </div>
-                <span class="text-stone-700 text-sm font-medium">RM {{ Number(qt.totalAmount).toFixed(2) }}</span>
-              </RouterLink>
-            </div>
-          </BaseCard>
+        <BaseCard v-if="dashboard.actionItems?.pendingQuotations?.length" title="Pending Quotations">
+          <div class="space-y-2">
+            <RouterLink
+              v-for="qt in dashboard.actionItems.pendingQuotations"
+              :key="qt.id"
+              :to="`/app/documents/${qt.id}`"
+              class="flex items-center justify-between py-2 border-b border-stone-200 last:border-0 hover:bg-stone-200/30 -mx-2 px-2 rounded transition-colors"
+            >
+              <div>
+                <span class="font-mono text-green-600 text-sm">{{ qt.documentNumber }}</span>
+                <span class="text-stone-500 text-sm ml-2">{{ qt.customerName }}</span>
+                <BaseBadge :color="qt.status === 'APPROVED' ? 'green' : 'blue'" class="ml-2">{{ qt.status }}</BaseBadge>
+              </div>
+              <span class="text-stone-700 text-sm font-medium">RM {{ Number(qt.totalAmount).toFixed(2) }}</span>
+            </RouterLink>
+          </div>
+        </BaseCard>
 
-          <!-- Low Stock -->
-          <BaseCard v-if="dashboard.lowStock?.length" title="Low Stock Alert">
-            <template #header-action>
-              <div class="flex items-center gap-2">
-                <BaseBadge color="red">{{ dashboard.lowStock.length }}</BaseBadge>
-                <RouterLink to="/app/stock/low-stock" class="text-green-600 text-xs hover:text-green-500">View all</RouterLink>
-              </div>
-            </template>
-            <div class="space-y-2 max-h-48 overflow-y-auto">
-              <div v-for="item in dashboard.lowStock" :key="item.id" class="flex items-center justify-between py-2 border-b border-stone-200 last:border-0">
-                <div>
-                  <span class="font-mono text-green-600 text-sm">{{ item.itemCode }}</span>
-                  <span class="text-stone-600 text-sm ml-2">{{ item.description }}</span>
-                </div>
-                <span class="text-red-400 font-semibold text-sm">{{ item.quantity }} left</span>
-              </div>
+        <BaseCard v-if="dashboard.lowStock?.length" title="Low Stock Alert">
+          <template #header-action>
+            <div class="flex items-center gap-2">
+              <BaseBadge color="red">{{ dashboard.lowStock.length }}</BaseBadge>
+              <RouterLink to="/app/stock/low-stock" class="text-green-600 text-xs hover:text-green-500">View all</RouterLink>
             </div>
-          </BaseCard>
-        </div>
+          </template>
+          <div class="space-y-2 max-h-48 overflow-y-auto">
+            <div v-for="item in dashboard.lowStock" :key="item.id" class="flex items-center justify-between py-2 border-b border-stone-200 last:border-0">
+              <div>
+                <span class="font-mono text-green-600 text-sm">{{ item.itemCode }}</span>
+                <span class="text-stone-600 text-sm ml-2">{{ item.description }}</span>
+              </div>
+              <span class="text-red-400 font-semibold text-sm">{{ item.quantity }} left</span>
+            </div>
+          </div>
+        </BaseCard>
+      </div>
 
-        <!-- Activity Feed (1/3) -->
-        <div class="bg-white border border-stone-200 rounded-xl p-6">
-          <h3 class="text-sm font-semibold text-stone-700 uppercase tracking-wider mb-4">Recent Activity</h3>
-          <div v-if="!dashboard.activities?.length" class="text-stone-500 text-sm text-center py-8">No recent activity.</div>
-          <div v-else class="space-y-3">
-            <div v-for="(a, i) in dashboard.activities" :key="i" class="flex gap-3">
-              <div class="mt-1">
-                <div :class="[
-                  'w-2 h-2 rounded-full',
-                  a.type === 'payment' ? 'bg-green-500' : a.type === 'stock' ? 'bg-blue-500' : 'bg-green-600',
-                ]" />
-              </div>
-              <div class="flex-1 min-w-0">
-                <component :is="a.link ? 'RouterLink' : 'p'" :to="a.link" class="text-stone-600 text-xs leading-relaxed break-words" :class="a.link && 'hover:text-green-600'">
-                  {{ a.description }}
-                </component>
-                <p class="text-stone-400 text-xs mt-0.5">
-                  {{ timeAgo(a.date) }}{{ a.by ? ` · ${a.by}` : '' }}
-                </p>
-              </div>
+      <!-- Recent Activity (standalone row — no empty gap) -->
+      <div class="bg-white border border-stone-200 rounded-xl p-6 mb-6">
+        <h3 class="text-sm font-semibold text-stone-700 uppercase tracking-wider mb-4">Recent Activity</h3>
+        <div v-if="!dashboard.activities?.length" class="text-stone-500 text-sm text-center py-4">No recent activity.</div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+          <div v-for="(a, i) in dashboard.activities" :key="i" class="flex gap-3 py-1.5">
+            <div class="mt-1">
+              <div :class="[
+                'w-2 h-2 rounded-full',
+                a.type === 'payment' ? 'bg-green-500' : a.type === 'stock' ? 'bg-blue-500' : 'bg-green-600',
+              ]" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <component :is="a.link ? 'RouterLink' : 'p'" :to="a.link" class="text-stone-600 text-xs leading-relaxed break-words" :class="a.link && 'hover:text-green-600'">
+                {{ a.description }}
+              </component>
+              <p class="text-stone-400 text-xs mt-0.5">
+                {{ timeAgo(a.date) }}{{ a.by ? ` · ${a.by}` : '' }}
+              </p>
             </div>
           </div>
         </div>
@@ -340,6 +334,12 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, LineElement, PointElement, Filler, Title, Tooltip, Legend)
 
 const dashboard = useDashboardStore()
+
+const hasActionItems = computed(() =>
+  (dashboard.actionItems?.overdue?.length ?? 0) > 0 ||
+  (dashboard.actionItems?.pendingQuotations?.length ?? 0) > 0 ||
+  (dashboard.lowStock?.length ?? 0) > 0
+)
 
 // ─── Stat Card Component ───────────────────────────────────
 const StatCard = {

@@ -102,7 +102,7 @@
 import { ref, computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { Package, Users, BarChart3, LogOut, Menu, TrendingUp, ShoppingCart, PackageCheck, ChevronDown, FileSearch, MessageCircle, Send, ScrollText } from 'lucide-vue-next'
+import { Package, Users, BarChart3, LogOut, Menu, TrendingUp, ShoppingCart, PackageCheck, ChevronDown, FileSearch, MessageCircle, Send, ScrollText, LayoutDashboard } from 'lucide-vue-next'
 import AssistantWidget from '../components/AssistantWidget.vue'
 
 const auth = useAuthStore()
@@ -111,6 +111,7 @@ const router = useRouter()
 const sidebarOpen = ref(false)
 
 const allNavItems = [
+  { path: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'MANAGER'] },
   { path: '/app/users/office', label: 'User (Office Use)', icon: Users, roles: ['ADMIN'] },
   { path: '/app/sales-order', label: 'Sales Order', icon: ShoppingCart, roles: ['ADMIN', 'MANAGER'] },
   {
