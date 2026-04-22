@@ -41,6 +41,7 @@ model Branch {
   quotationTypes       QuotationType[]
   packingListTemplates PackingListTemplate[]
   supplierCategories   SupplierCategory[]
+  comparisons          QuotationComparison[]
 
   @@map("branches")
 }
@@ -74,6 +75,7 @@ model User {
   createdSalesOrders      SalesOrder[] @relation("SalesOrderCreatedBy")
   createdPricingBoards    PricingBoard[] @relation("PricingBoardCreatedBy")
   createdClearanceLists   ProductClearanceList[] @relation("ClearanceListCreatedBy")
+  comparisons             QuotationComparison[] @relation("ComparisonCreatedBy")
 
   @@index([branchId])
   @@map("users")
@@ -1116,5 +1118,23 @@ enum SalesOrderStatus {
   RETURN_ORDER
   COMBINED
   CANCELLED
+}
+
+// ─── QUOTATION COMPARISON ─────────────────────────────────
+model QuotationComparison {
+  id          String   @id @default(cuid())
+  branchId    String
+  title       String?
+  suppliers   Json
+  items       Json
+  summary     String   @db.Text
+  createdById String
+  createdAt   DateTime @default(now())
+
+  branch    Branch @relation(fields: [branchId], references: [id])
+  createdBy User   @relation("ComparisonCreatedBy", fields: [createdById], references: [id])
+
+  @@index([branchId, createdAt])
+  @@map("quotation_comparisons")
 }
 

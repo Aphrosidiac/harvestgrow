@@ -57,24 +57,25 @@ export async function compareQuotations(
   }
 
   const parts = request.parts()
-  const files: { filename: string; data: Buffer }[] = []
+  const files: { filename: string; data: Buffer; mimetype: string }[] = []
+  const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
 
   for await (const part of parts) {
-    if (part.type === 'file' && part.mimetype === 'application/pdf') {
+    if (part.type === 'file' && ALLOWED_TYPES.includes(part.mimetype)) {
       const chunks: Buffer[] = []
       for await (const chunk of part.file) {
         chunks.push(chunk)
       }
-      files.push({ filename: part.filename, data: Buffer.concat(chunks) })
+      files.push({ filename: part.filename, data: Buffer.concat(chunks), mimetype: part.mimetype })
     }
   }
 
   if (files.length < 2) {
-    return reply.status(400).send({ success: false, message: 'Please upload at least 2 PDF quotations to compare' })
+    return reply.status(400).send({ success: false, message: 'Please upload at least 2 quotation files to compare' })
   }
 
   if (files.length > 10) {
-    return reply.status(400).send({ success: false, message: 'Maximum 10 PDF files allowed' })
+    return reply.status(400).send({ success: false, message: 'Maximum 10 files allowed' })
   }
 
   const supplierResults: SupplierData[] = []
@@ -83,6 +84,10 @@ export async function compareQuotations(
     try {
       const base64Data = file.data.toString('base64')
 
+      const contentBlock = file.mimetype === 'application/pdf'
+        ? { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: base64Data } }
+        : { type: 'image' as const, source: { type: 'base64' as const, media_type: file.mimetype as any, data: base64Data } }
+
       const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4096,
@@ -90,14 +95,7 @@ export async function compareQuotations(
           {
             role: 'user',
             content: [
-              {
-                type: 'document',
-                source: {
-                  type: 'base64',
-                  media_type: 'application/pdf',
-                  data: base64Data,
-                },
-              },
+              contentBlock,
               {
                 type: 'text',
                 text: EXTRACTION_PROMPT,
@@ -173,6 +171,21 @@ export async function compareQuotations(
     summary = `Comparison complete. ${comparisonItems.length} products compared across ${suppliers.length} suppliers.`
   }
 
+  // Save comparison to history
+  try {
+    await request.server.prisma.quotationComparison.create({
+      data: {
+        branchId: request.user.branchId,
+        suppliers: suppliers,
+        items: comparisonItems,
+        summary,
+        createdById: request.user.userId,
+      },
+    })
+  } catch (err) {
+    request.log.error(err, 'Failed to save comparison history')
+  }
+
   return reply.send({
     success: true,
     data: {
@@ -181,4 +194,41 @@ export async function compareQuotations(
       summary,
     },
   })
+}
+
+export async function listComparisons(request: FastifyRequest<{ Querystring: { page?: string; limit?: string } }>, reply: FastifyReply) {
+  const { branchId } = request.user
+  const page = Math.max(1, parseInt(request.query.page ?? '1'))
+  const limit = Math.min(50, Math.max(1, parseInt(request.query.limit ?? '20')))
+  const skip = (page - 1) * limit
+
+  const [data, total] = await Promise.all([
+    request.server.prisma.quotationComparison.findMany({
+      where: { branchId },
+      select: { id: true, title: true, suppliers: true, summary: true, createdAt: true, createdBy: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip, take: limit,
+    }),
+    request.server.prisma.quotationComparison.count({ where: { branchId } }),
+  ])
+
+  return reply.send({ success: true, data, total, page, limit, totalPages: Math.ceil(total / limit) })
+}
+
+export async function getComparison(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  const { branchId } = request.user
+  const comparison = await request.server.prisma.quotationComparison.findFirst({
+    where: { id: request.params.id, branchId },
+    include: { createdBy: { select: { name: true } } },
+  })
+  if (!comparison) return reply.status(404).send({ success: false, message: 'Comparison not found' })
+  return reply.send({ success: true, data: comparison })
+}
+
+export async function deleteComparison(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  const { branchId } = request.user
+  const existing = await request.server.prisma.quotationComparison.findFirst({ where: { id: request.params.id, branchId } })
+  if (!existing) return reply.status(404).send({ success: false, message: 'Not found' })
+  await request.server.prisma.quotationComparison.delete({ where: { id: request.params.id } })
+  return reply.send({ success: true, message: 'Deleted' })
 }
