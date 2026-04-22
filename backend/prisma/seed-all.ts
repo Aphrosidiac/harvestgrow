@@ -84,23 +84,23 @@ async function main() {
 
   // ─── SUPPLIERS (extended fields) ────────────────────────
   const suppliers = [
-    { companyName: 'BINDU', shortForm: 'BINDU', code: '400-B0001', contactName: 'Ravi', phone: '+607-111 0001' },
-    { companyName: 'C&S', shortForm: 'C&S', code: '400-C0020', contactName: 'Tan CK', phone: '+607-111 0002' },
-    { companyName: 'CASH PURCHASE - FARM', shortForm: 'FARM HARVESTGROW', code: '400-C0015', contactName: 'Own Farm', phone: '+607-511 2696' },
-    { companyName: 'CHEONG FATT', shortForm: 'CF', code: '400-C0031', contactName: 'Mr Cheong', phone: '+607-111 0003' },
-    { companyName: 'CHUAN WAN', shortForm: 'CW', code: '400-C0013', contactName: 'Ah Wan', phone: '+607-111 0004' },
-    { companyName: 'CJ', shortForm: 'CJ', code: '400-C0010', contactName: 'CJ Office', phone: '+607-111 0005' },
-    { companyName: 'CK', shortForm: 'CK', code: '400-C0011', contactName: 'Mr CK', phone: '+607-111 0006' },
-    { companyName: 'CS AGRICULTURE', shortForm: 'HQ', code: '400-C0012', contactName: 'CS Office', phone: '+607-111 0007' },
-    { companyName: 'DD FRESH', shortForm: 'DD', code: '400-D0005', contactName: 'DD Manager', phone: '+607-111 0008' },
-    { companyName: 'DOUBLE TREE', shortForm: 'DT', code: '400-D0006', contactName: 'Double Tree', phone: '+607-111 0009' },
-    { companyName: 'ENERGY ORGANIC', shortForm: 'EO', code: '400-E0009', contactName: 'Energy Office', phone: '+607-111 0010' },
+    { companyName: 'BINDU', shortForm: 'BINDU', code: '400-B0001', contactName: 'Ravi', phone: '+607-111 0001', country: 'Malaysia' },
+    { companyName: 'C&S', shortForm: 'C&S', code: '400-C0020', contactName: 'Tan CK', phone: '+607-111 0002', country: 'Malaysia' },
+    { companyName: 'CASH PURCHASE - FARM', shortForm: 'FARM HARVESTGROW', code: '400-C0015', contactName: 'Own Farm', phone: '+607-511 2696', country: 'Malaysia' },
+    { companyName: 'CHEONG FATT', shortForm: 'CF', code: '400-C0031', contactName: 'Mr Cheong', phone: '+607-111 0003', country: 'Malaysia' },
+    { companyName: 'CHUAN WAN', shortForm: 'CW', code: '400-C0013', contactName: 'Ah Wan', phone: '+607-111 0004', country: 'Malaysia' },
+    { companyName: 'CJ', shortForm: 'CJ', code: '400-C0010', contactName: 'CJ Office', phone: '+65-6111 0005', country: 'Singapore' },
+    { companyName: 'CK', shortForm: 'CK', code: '400-C0011', contactName: 'Mr CK', phone: '+65-6111 0006', country: 'Singapore' },
+    { companyName: 'CS AGRICULTURE', shortForm: 'HQ', code: '400-C0012', contactName: 'CS Office', phone: '+607-111 0007', country: 'Malaysia' },
+    { companyName: 'DD FRESH', shortForm: 'DD', code: '400-D0005', contactName: 'DD Manager', phone: '+65-6111 0008', country: 'Singapore' },
+    { companyName: 'DOUBLE TREE', shortForm: 'DT', code: '400-D0006', contactName: 'Double Tree', phone: '+607-111 0009', country: 'Malaysia' },
+    { companyName: 'ENERGY ORGANIC', shortForm: 'EO', code: '400-E0009', contactName: 'Energy Office', phone: '+65-6111 0010', country: 'Singapore' },
   ]
 
   for (const s of suppliers) {
     await prisma.supplier.upsert({
       where: { id: (await prisma.supplier.findFirst({ where: { branchId, companyName: s.companyName } }))?.id || 'x' },
-      update: { shortForm: s.shortForm, code: s.code },
+      update: { shortForm: s.shortForm, code: s.code, country: s.country },
       create: { branchId, ...s },
     }).catch(async () => {
       return prisma.supplier.create({ data: { branchId, ...s } })

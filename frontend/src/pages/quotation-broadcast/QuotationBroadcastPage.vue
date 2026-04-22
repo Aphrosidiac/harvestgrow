@@ -45,15 +45,49 @@
     <div class="bg-white border border-stone-200 rounded-xl p-6 mb-6">
       <h3 class="text-sm font-semibold text-stone-500 uppercase mb-4">Compose Quotation</h3>
 
-      <div v-if="selectedCategory" class="mb-4 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+      <!-- Broadcast target selector -->
+      <div class="flex items-center gap-2 mb-4">
+        <span class="text-xs font-semibold text-stone-500 uppercase">Broadcast to:</span>
+        <div class="flex items-center rounded-lg border border-stone-300 overflow-hidden">
+          <button
+            @click="broadcastTarget = 'category'"
+            class="px-3 py-1.5 text-sm font-medium transition-colors"
+            :class="broadcastTarget === 'category' ? 'bg-green-600 text-white' : 'bg-stone-200 text-stone-600 hover:bg-stone-300'"
+          >Category</button>
+          <button
+            @click="broadcastTarget = 'MY'; selectedCategory = ''"
+            class="px-3 py-1.5 text-sm font-medium transition-colors"
+            :class="broadcastTarget === 'MY' ? 'bg-green-600 text-white' : 'bg-stone-200 text-stone-600 hover:bg-stone-300'"
+          >All Malaysia</button>
+          <button
+            @click="broadcastTarget = 'SG'; selectedCategory = ''"
+            class="px-3 py-1.5 text-sm font-medium transition-colors"
+            :class="broadcastTarget === 'SG' ? 'bg-green-600 text-white' : 'bg-stone-200 text-stone-600 hover:bg-stone-300'"
+          >All Singapore</button>
+        </div>
+      </div>
+
+      <div v-if="broadcastTarget === 'category' && selectedCategory" class="mb-4 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
         <p class="text-sm text-green-700">
           <Send class="w-4 h-4 inline mr-1" />
           <strong>{{ categorySuppliers.length }}</strong> suppliers will receive this quotation
           <span class="text-green-500">({{ selectedCategoryName }})</span>
         </p>
       </div>
+      <div v-else-if="broadcastTarget === 'MY'" class="mb-4 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+        <p class="text-sm text-green-700">
+          <Send class="w-4 h-4 inline mr-1" />
+          <strong>{{ countrySupplierCount('Malaysia') }}</strong> Malaysian suppliers will receive this quotation
+        </p>
+      </div>
+      <div v-else-if="broadcastTarget === 'SG'" class="mb-4 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+        <p class="text-sm text-green-700">
+          <Send class="w-4 h-4 inline mr-1" />
+          <strong>{{ countrySupplierCount('Singapore') }}</strong> Singaporean suppliers will receive this quotation
+        </p>
+      </div>
       <div v-else class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
-        <p class="text-sm text-amber-700">Select a supplier category above to broadcast to.</p>
+        <p class="text-sm text-amber-700">Select a supplier category or country above to broadcast to.</p>
       </div>
 
       <!-- Items -->
@@ -98,7 +132,7 @@
 
       <!-- Send -->
       <div class="flex items-center justify-end gap-3">
-        <BaseButton variant="primary" :loading="broadcasting" :disabled="!selectedCategory || !items.length || !categorySuppliers.length" @click="handleBroadcast">
+        <BaseButton variant="primary" :loading="broadcasting" :disabled="!canBroadcast || !items.length" @click="handleBroadcast">
           <Send class="w-4 h-4 mr-1.5" /> Send Quotation
         </BaseButton>
       </div>
@@ -177,6 +211,7 @@ const confirm = useConfirm()
 const categories = ref<any[]>([])
 const allSuppliers = ref<any[]>([])
 const selectedCategory = ref('')
+const broadcastTarget = ref<'category' | 'MY' | 'SG'>('category')
 const items = ref<{ product: string; quantity: number; unit: string; price: number }[]>([])
 const message = ref('')
 const broadcasting = ref(false)
@@ -201,6 +236,17 @@ const selectedCategoryName = computed(() =>
 const unassignedSuppliers = computed(() =>
   allSuppliers.value.filter((s) => !s.supplierCategoryId || s.supplierCategoryId !== selectedCategory.value)
 )
+
+function countrySupplierCount(country: string): number {
+  return allSuppliers.value.filter((s) => s.country === country && s.phone && s.isActive !== false).length
+}
+
+const canBroadcast = computed(() => {
+  if (broadcastTarget.value === 'category') return !!selectedCategory.value && categorySuppliers.value.length > 0
+  if (broadcastTarget.value === 'MY') return countrySupplierCount('Malaysia') > 0
+  if (broadcastTarget.value === 'SG') return countrySupplierCount('Singapore') > 0
+  return false
+})
 
 const messagePreview = computed(() => {
   let text = `*HARVEST GROW VEG SDN BHD*\n📋 Quotation Request\n\n`
@@ -286,11 +332,16 @@ async function handleBroadcast() {
   broadcasting.value = true
   broadcastResult.value = null
   try {
-    const { data } = await api.post('/quotation-broadcast/broadcast', {
-      categoryId: selectedCategory.value,
+    const payload: any = {
       items: items.value.filter((i) => i.product),
       message: message.value,
-    })
+    }
+    if (broadcastTarget.value === 'category') {
+      payload.categoryId = selectedCategory.value
+    } else {
+      payload.country = broadcastTarget.value === 'MY' ? 'Malaysia' : 'Singapore'
+    }
+    const { data } = await api.post('/quotation-broadcast/broadcast', payload)
     broadcastResult.value = data.data
     toast.success(`Sent to ${data.data.sent} suppliers`)
   } catch (e: any) {

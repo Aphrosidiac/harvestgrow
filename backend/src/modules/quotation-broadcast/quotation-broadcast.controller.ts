@@ -109,10 +109,10 @@ export async function broadcastQuotation(
   reply: FastifyReply
 ) {
   const { branchId } = request.user
-  const { categoryId, items, message } = request.body as any
+  const { categoryId, country, items, message } = request.body as any
 
-  if (!categoryId) {
-    return reply.status(400).send({ success: false, message: 'Supplier category is required' })
+  if (!categoryId && !country) {
+    return reply.status(400).send({ success: false, message: 'Select a supplier category or country' })
   }
   if (!items?.length) {
     return reply.status(400).send({ success: false, message: 'At least one item is required' })
@@ -123,13 +123,20 @@ export async function broadcastQuotation(
     return reply.status(400).send({ success: false, message: 'WhatsApp is not connected. Go to WhatsApp Settings to connect first.' })
   }
 
+  const where: any = { branchId, isActive: true, phone: { not: null } }
+  if (categoryId) {
+    where.supplierCategoryId = categoryId
+  } else if (country) {
+    where.country = country
+  }
+
   const suppliers = await request.server.prisma.supplier.findMany({
-    where: { branchId, supplierCategoryId: categoryId, isActive: true, phone: { not: null } },
+    where,
     select: { id: true, companyName: true, phone: true },
   })
 
   if (!suppliers.length) {
-    return reply.status(400).send({ success: false, message: 'No suppliers with phone numbers in this category' })
+    return reply.status(400).send({ success: false, message: 'No suppliers with phone numbers match this filter' })
   }
 
   let text = `*HARVEST GROW VEG SDN BHD*\n📋 Quotation Request\n\n`
