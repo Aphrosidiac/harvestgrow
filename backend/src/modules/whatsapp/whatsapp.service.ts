@@ -1,4 +1,6 @@
-import makeWASocket, { useMultiFileAuthState, DisconnectReason, WASocket, downloadMediaMessage } from 'baileys'
+import baileys from 'baileys'
+const { makeWASocket, useMultiFileAuthState, DisconnectReason, downloadMediaMessage } = baileys
+type WASocket = ReturnType<typeof makeWASocket>
 import * as QRCode from 'qrcode'
 import { join } from 'path'
 import { existsSync, rmSync } from 'fs'
