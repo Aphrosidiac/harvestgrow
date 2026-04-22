@@ -43,7 +43,7 @@
         <p class="text-xs text-stone-500 mt-3">Open WhatsApp on your phone</p>
         <p class="text-xs text-stone-400">Go to <strong>Settings → Linked Devices → Link a Device</strong></p>
         <p class="text-xs text-stone-400 mt-2">QR code refreshes automatically. If expired, click reconnect below.</p>
-        <button @click="handleConnect" class="mt-3 text-xs text-green-600 hover:text-green-700 underline">Regenerate QR</button>
+        <button @click="handleConnect(true)" class="mt-3 text-xs text-green-600 hover:text-green-700 underline">Regenerate QR</button>
       </div>
 
       <!-- Connecting / Loading -->
@@ -160,14 +160,14 @@ async function fetchStatus() {
   }
 }
 
-async function handleConnect() {
+async function handleConnect(force = false) {
   errorMessage.value = ''
   waitingForQR.value = true
   qrCode.value = ''
   pollCount = 0
 
   try {
-    await api.post('/whatsapp/connect')
+    await api.post(`/whatsapp/connect${force ? '?force=true' : ''}`)
     startPolling()
   } catch (e: any) {
     const msg = e.response?.data?.message || e.message || 'Failed to initialize WhatsApp connection'

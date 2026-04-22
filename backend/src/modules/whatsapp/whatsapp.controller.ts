@@ -10,9 +10,10 @@ export async function getWhatsAppQR(_request: FastifyRequest, reply: FastifyRepl
   return reply.send({ success: true, data: { qr } })
 }
 
-export async function connectWhatsApp(_request: FastifyRequest, reply: FastifyReply) {
+export async function connectWhatsApp(request: FastifyRequest<{ Querystring: { force?: string } }>, reply: FastifyReply) {
   try {
-    const result = await waService.initConnection()
+    const force = (request.query as any).force === 'true'
+    const result = await waService.initConnection(force)
     return reply.send({ success: true, data: result })
   } catch (err: any) {
     return reply.status(500).send({ success: false, message: err.message || 'Failed to connect' })

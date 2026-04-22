@@ -4,6 +4,7 @@ import { join } from 'path'
 import { existsSync, rmSync } from 'fs'
 
 const SESSION_DIR = join(process.cwd(), 'whatsapp-session')
+const MAX_RECONNECT_ATTEMPTS = 10
 
 let socket: WASocket | null = null
 let currentQR: string | null = null
@@ -27,17 +28,33 @@ export function getQR() {
   return currentQR
 }
 
-export async function initConnection() {
-  if (connectionStatus === 'connected') {
+function destroySocket() {
+  if (socket) {
+    try {
+      socket.ev.removeAllListeners('creds.update')
+      socket.ev.removeAllListeners('connection.update')
+      socket.ev.removeAllListeners('messages.upsert')
+      socket.end(undefined)
+    } catch {}
+    socket = null
+  }
+}
+
+export async function initConnection(force = false) {
+  if (connectionStatus === 'connected' && !force) {
     return { status: 'connected', message: 'Already connected' }
   }
 
-  if (connectionStatus === 'connecting' || connectionStatus === 'qr') {
+  if ((connectionStatus === 'connecting' || connectionStatus === 'qr') && !force) {
     return { status: connectionStatus, message: 'Connection in progress' }
   }
 
+  clearReconnectTimer()
+  destroySocket()
+
   connectionStatus = 'connecting'
   currentQR = null
+  connectedPhone = null
 
   try {
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR)
@@ -82,17 +99,26 @@ export async function initConnection() {
         connectionStatus = 'disconnected'
         connectedPhone = null
         currentQR = null
-        socket = null
+        destroySocket()
 
-        if (shouldReconnect) {
-          const delay = Math.min(5000 * Math.pow(2, reconnectAttempt), 300000)
-          reconnectAttempt++
-          console.log(`[WhatsApp] Will reconnect in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempt})...`)
-          clearReconnectTimer()
-          reconnectTimer = setTimeout(() => initConnection(), delay)
-        } else {
+        if (!shouldReconnect) {
+          reconnectAttempt = 0
           cleanSession()
+          return
         }
+
+        if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+          console.log(`[WhatsApp] Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached — giving up. Clean session and retry manually.`)
+          reconnectAttempt = 0
+          cleanSession()
+          return
+        }
+
+        const delay = Math.min(5000 * Math.pow(2, reconnectAttempt), 300000)
+        reconnectAttempt++
+        console.log(`[WhatsApp] Will reconnect in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempt}/${MAX_RECONNECT_ATTEMPTS})...`)
+        clearReconnectTimer()
+        reconnectTimer = setTimeout(() => initConnection(), delay)
       }
     })
 
@@ -148,12 +174,15 @@ export async function initConnection() {
   } catch (err: any) {
     console.error('[WhatsApp] Init error:', err)
     connectionStatus = 'disconnected'
+    destroySocket()
+    cleanSession()
     throw new Error(`Failed to initialize WhatsApp: ${err.message}`)
   }
 }
 
 export async function disconnect() {
   clearReconnectTimer()
+  reconnectAttempt = 0
 
   if (!socket) {
     connectionStatus = 'disconnected'
@@ -169,7 +198,7 @@ export async function disconnect() {
     console.error('[WhatsApp] Logout error (continuing):', err)
   }
 
-  socket = null
+  destroySocket()
   connectionStatus = 'disconnected'
   connectedPhone = null
   currentQR = null
