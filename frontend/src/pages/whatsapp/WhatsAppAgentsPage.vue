@@ -85,8 +85,16 @@
           <p>Staff can text the connected WhatsApp number to:</p>
           <p>- Check product stock and prices ("how much sawi in stock?")</p>
           <p>- Create quotation drafts ("quotation for sawi 50kg, kangkong 30 bundles")</p>
-          <p>- Check today's orders and delivery status</p>
-          <p>- Ask any business question</p>
+          <p>- Check today's orders and pending orders</p>
+          <p>- Look up customer info and search contacts</p>
+          <p>- Check customer outstanding balance ("how much does Lim Ah Seng owe?")</p>
+          <p>- Record stock adjustments ("wastage 5kg sawi expired")</p>
+          <p>- View low stock alerts and recent price changes</p>
+          <p class="mt-2 font-medium text-stone-700">Media Support:</p>
+          <p>- Send a voice note — it will be transcribed and processed automatically</p>
+          <p>- Send an image (e.g. handwritten order) — items will be extracted from it</p>
+          <p class="mt-2 font-medium text-stone-700">Multi-language:</p>
+          <p>- Supports English, Malay (BM), and Chinese — replies in the same language</p>
           <p class="mt-2 text-stone-400">Employee phones are auto-detected from staff profiles (User → phone field).</p>
         </template>
         <template v-else>
@@ -94,7 +102,14 @@
           <p>- Check product availability and prices</p>
           <p>- View available product categories</p>
           <p>- Ask about delivery areas and slots</p>
-          <p>- Track their orders</p>
+          <p>- Track their orders by phone number or order number</p>
+          <p>- Place orders directly via WhatsApp ("I want 5kg kangkung for tomorrow AM")</p>
+          <p>- Repeat their last order ("same as last time")</p>
+          <p class="mt-2 font-medium text-stone-700">Media Support:</p>
+          <p>- Send a voice note to order or ask questions hands-free</p>
+          <p>- Send a photo of an order list — items will be extracted and offered for ordering</p>
+          <p class="mt-2 font-medium text-stone-700">Multi-language:</p>
+          <p>- Supports English, Malay (BM), and Chinese — auto-detects and replies in the same language</p>
         </template>
       </div>
     </details>
