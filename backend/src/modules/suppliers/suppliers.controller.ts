@@ -1,6 +1,34 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
 import { getPaginationParams, paginatedResponse } from '../../utils/pagination.js'
+import { validate } from '../../utils/validation.js'
 import { Prisma } from '@prisma/client'
+
+const createSupplierSchema = z.object({
+  companyName: z.string().min(1, 'Company name is required'),
+  contactName: z.string().optional(),
+  shortForm: z.string().optional(),
+  code: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+  address: z.string().optional(),
+  bankName: z.string().optional(),
+  bankAccount: z.string().optional(),
+  notes: z.string().optional(),
+})
+
+const updateSupplierSchema = z.object({
+  companyName: z.string().min(1).optional(),
+  contactName: z.string().nullable().optional(),
+  shortForm: z.string().nullable().optional(),
+  code: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  bankName: z.string().nullable().optional(),
+  bankAccount: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+})
 
 export async function listSuppliers(
   request: FastifyRequest<{ Querystring: Record<string, any> }>,
@@ -59,27 +87,14 @@ export async function getSupplier(
 }
 
 export async function createSupplier(
-  request: FastifyRequest<{
-    Body: {
-      companyName: string
-      contactName?: string
-      phone?: string
-      email?: string
-      address?: string
-      bankName?: string
-      bankAccount?: string
-      notes?: string
-    }
-  }>,
+  request: FastifyRequest,
   reply: FastifyReply
 ) {
-  const { branchId } = request.user
-  const body = request.body as any
-  const { companyName, contactName, shortForm, code, phone, email, address, bankName, bankAccount, notes } = body
+  const data = validate(createSupplierSchema, request.body, reply)
+  if (!data) return
 
-  if (!companyName?.trim()) {
-    return reply.status(400).send({ success: false, message: 'Company name is required' })
-  }
+  const { branchId } = request.user
+  const { companyName, contactName, shortForm, code, phone, email, address, bankName, bankAccount, notes } = data
 
   const supplier = await request.server.prisma.supplier.create({
     data: {
@@ -101,25 +116,15 @@ export async function createSupplier(
 }
 
 export async function updateSupplier(
-  request: FastifyRequest<{
-    Params: { id: string }
-    Body: {
-      companyName?: string
-      contactName?: string
-      phone?: string
-      email?: string
-      address?: string
-      bankName?: string
-      bankAccount?: string
-      notes?: string
-    }
-  }>,
+  request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) {
+  const data = validate(updateSupplierSchema, request.body, reply)
+  if (!data) return
+
   const { branchId } = request.user
   const { id } = request.params
-  const body = request.body as any
-  const { companyName, contactName, shortForm, code, phone, email, address, bankName, bankAccount, notes } = body
+  const { companyName, contactName, shortForm, code, phone, email, address, bankName, bankAccount, notes } = data
 
   const existing = await request.server.prisma.supplier.findFirst({ where: { id, branchId } })
   if (!existing) {

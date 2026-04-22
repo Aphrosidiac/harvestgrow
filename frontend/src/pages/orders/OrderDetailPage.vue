@@ -117,11 +117,13 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useOrdersStore } from '../../stores/orders'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
 import type { OrderStatus, ShopOrder } from '../../types'
 
 const route = useRoute()
 const store = useOrdersStore()
 const toast = useToast()
+const confirm = useConfirm()
 const order = ref<ShopOrder | null>(null)
 const newStatus = ref<OrderStatus>('PENDING')
 const statuses: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PICKING', 'CUTTING', 'PACKING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']
@@ -149,7 +151,7 @@ async function changeStatus() {
 
 async function cancel() {
   if (!order.value) return
-  if (!confirm('Cancel this order? Stock will be restored.')) return
+  if (!(await confirm.show('Cancel Order', 'Cancel this order? Stock will be restored.', { confirmLabel: 'Cancel Order' }))) return
   order.value = await store.cancelOrder(order.value.id)
   newStatus.value = order.value.status
 }

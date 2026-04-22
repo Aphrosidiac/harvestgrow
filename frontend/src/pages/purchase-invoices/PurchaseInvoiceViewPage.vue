@@ -91,6 +91,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
 import api from '../../lib/api'
 import BaseButton from '../../components/base/BaseButton.vue'
 import BaseBadge from '../../components/base/BaseBadge.vue'
@@ -99,6 +100,7 @@ import { ArrowLeft, Pencil, CheckCheck, Check, Paperclip } from 'lucide-vue-next
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const confirm = useConfirm()
 
 const pi = ref<any>(null)
 const loading = ref(true)
@@ -168,7 +170,7 @@ async function handleVerify() {
 }
 
 async function handleFinalize() {
-  if (!confirm('This will update stock quantities. Are you sure?')) return
+  if (!(await confirm.show('Verify Invoice', 'This will update stock quantities. Are you sure?', { confirmLabel: 'Verify', confirmVariant: 'primary' }))) return
   actionLoading.value = true
   try {
     await api.post(`/purchase-invoices/${pi.value.id}/finalize`)
@@ -182,7 +184,7 @@ async function handleFinalize() {
 }
 
 async function handleCancel() {
-  if (!confirm('Cancel this purchase invoice?')) return
+  if (!(await confirm.show('Cancel Invoice', 'Cancel this purchase invoice?', { confirmLabel: 'Cancel Invoice' }))) return
   actionLoading.value = true
   try {
     await api.post(`/purchase-invoices/${pi.value.id}/cancel`)

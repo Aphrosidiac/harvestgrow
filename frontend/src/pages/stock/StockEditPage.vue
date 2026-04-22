@@ -56,6 +56,7 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStockStore } from '../../stores/stock'
 import { useToast } from '../../composables/useToast'
+import { useUnsavedChanges } from '../../composables/useUnsavedChanges'
 import BaseInput from '../../components/base/BaseInput.vue'
 import BaseSelect from '../../components/base/BaseSelect.vue'
 import BaseButton from '../../components/base/BaseButton.vue'
@@ -65,6 +66,7 @@ const route = useRoute()
 const router = useRouter()
 const stock = useStockStore()
 const toast = useToast()
+const { markDirty, markClean } = useUnsavedChanges()
 const saving = ref(false)
 const loadingItem = ref(true)
 
@@ -84,6 +86,8 @@ const form = reactive({
   shelfLifeDays: '',
   cutOptions: '',
 })
+
+watch(form, () => markDirty(), { deep: true })
 
 async function loadItem() {
   loadingItem.value = true
@@ -127,6 +131,7 @@ async function handleSubmit() {
       cutOptions: form.cutOptions || undefined,
     } as any)
     toast.success('Item updated successfully')
+    markClean()
     router.push('/app/stock')
   } catch (e: any) {
     toast.error(e.response?.data?.message || 'Failed to update item')

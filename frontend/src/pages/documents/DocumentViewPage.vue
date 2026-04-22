@@ -279,6 +279,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useDocumentStore } from '../../stores/documents'
 import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
 import { domToPng } from 'modern-screenshot'
 import api from '../../lib/api'
 import BaseButton from '../../components/base/BaseButton.vue'
@@ -297,6 +298,7 @@ const router = useRouter()
 const store = useDocumentStore()
 const auth = useAuthStore()
 const toast = useToast()
+const confirm = useConfirm()
 
 const doc = ref<Document | null>(null)
 const branch = ref<any>(null)
@@ -400,7 +402,7 @@ async function loadDocument() {
 
 async function handleStatus(status: DocumentStatus) {
   if (!doc.value) return
-  if (status === 'VOID' && !confirm('Are you sure you want to void this document? Stock will be restored.')) return
+  if (status === 'VOID' && !(await confirm.show('Void Document', 'Are you sure you want to void this document? Stock will be restored.', { confirmLabel: 'Void' }))) return
   statusLoading.value = true
   try {
     doc.value = await store.updateStatus(doc.value.id, status)
@@ -416,13 +418,13 @@ async function handleStatus(status: DocumentStatus) {
 
 async function handleRevertDraft() {
   if (!doc.value) return
-  if (!confirm('Are you sure you want to revert this document to DRAFT? Stock changes will be reversed.')) return
+  if (!(await confirm.show('Revert to Draft', 'Are you sure you want to revert this document to DRAFT? Stock changes will be reversed.', { confirmLabel: 'Revert' }))) return
   await handleStatus('DRAFT')
 }
 
 async function handleRevertPaidDraft() {
   if (!doc.value) return
-  if (!confirm('WARNING: This will DELETE all payment records and revert the invoice to DRAFT. Stock will be restored. Are you sure?')) return
+  if (!(await confirm.show('Delete Payments & Revert', 'This will DELETE all payment records and revert the invoice to DRAFT. Stock will be restored. Are you sure?'))) return
   await handleStatus('DRAFT')
 }
 

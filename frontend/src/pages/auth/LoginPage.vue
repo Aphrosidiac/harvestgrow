@@ -17,7 +17,7 @@
             type="email"
             required
             class="w-full bg-white border border-stone-300 rounded-lg px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50 focus:border-green-600"
-            placeholder="admin@harvestgrow-veg.com"
+            placeholder="Enter your email"
           />
         </div>
         <div>
@@ -41,9 +41,6 @@
           {{ loading ? 'Signing in...' : 'Sign In' }}
         </button>
 
-        <p class="text-xs text-stone-500 text-center pt-2">
-          Default: admin@harvestgrow-veg.com / admin123
-        </p>
       </form>
     </div>
   </div>

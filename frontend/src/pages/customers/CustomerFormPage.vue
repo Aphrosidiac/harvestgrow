@@ -92,10 +92,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCustomerStore } from '../../stores/customers'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
+import { useUnsavedChanges } from '../../composables/useUnsavedChanges'
 import BaseInput from '../../components/base/BaseInput.vue'
 import BaseButton from '../../components/base/BaseButton.vue'
 import BaseBadge from '../../components/base/BaseBadge.vue'
@@ -107,6 +109,8 @@ const route = useRoute()
 const router = useRouter()
 const store = useCustomerStore()
 const toast = useToast()
+const confirm = useConfirm()
+const { markDirty, markClean } = useUnsavedChanges()
 
 const isEdit = computed(() => !!route.params.id)
 const pageLoading = ref(false)
@@ -118,6 +122,8 @@ const vehicles = ref<Vehicle[]>([])
 
 const form = reactive({ name: '', companyName: '', phone: '', email: '' })
 const vehicleForm = reactive({ plate: '', make: '', model: '', color: '', mileage: '', engineNo: '' })
+
+watch(form, () => markDirty(), { deep: true })
 
 async function loadCustomer() {
   if (!route.params.id) return
@@ -142,10 +148,12 @@ async function handleSave() {
   try {
     if (isEdit.value) {
       await store.updateCustomer(route.params.id as string, form)
+      markClean()
       toast.success('Customer updated')
     } else {
       const customer = await store.createCustomer(form)
       toast.success('Customer created')
+      markClean()
       router.push(`/app/customers/${customer.id}/edit`)
       return
     }
@@ -209,7 +217,7 @@ async function setDefault(vehicleId: string) {
 }
 
 async function handleDeleteVehicle(vehicleId: string) {
-  if (!confirm('Delete this vehicle?')) return
+  if (!(await confirm.show('Delete Vehicle', 'Delete this vehicle?'))) return
   try {
     await store.deleteVehicle(route.params.id as string, vehicleId)
     loadCustomer()

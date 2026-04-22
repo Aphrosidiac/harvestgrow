@@ -16,7 +16,7 @@
       </BaseButton>
     </div>
 
-    <BaseTable :columns="columns" :data="store.customers" :loading="store.loading" empty-text="No customers yet.">
+    <BaseTable :columns="columns" :data="store.customers" :loading="store.loading" empty-text="No customers yet." mobile-cards>
       <template #cell-name="{ value, row }">
         <RouterLink :to="`/app/customers/${row.id}/edit`" class="text-green-600 hover:text-green-500 font-medium">{{ value }}</RouterLink>
       </template>
@@ -60,6 +60,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useCustomerStore } from '../../stores/customers'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
 import BaseButton from '../../components/base/BaseButton.vue'
 import BaseTable from '../../components/base/BaseTable.vue'
 import BasePagination from '../../components/base/BasePagination.vue'
@@ -67,6 +68,7 @@ import { Search, Plus, Pencil, Trash2 } from 'lucide-vue-next'
 
 const store = useCustomerStore()
 const toast = useToast()
+const confirm = useConfirm()
 const search = ref('')
 
 const columns = [
@@ -88,7 +90,7 @@ function fetchData() {
 }
 
 async function handleDelete(row: any) {
-  if (!confirm(`Delete customer "${row.name}"?`)) return
+  if (!(await confirm.show('Delete Customer', `Delete customer "${row.name}"?`))) return
   try {
     await store.deleteCustomer(row.id)
     toast.success('Customer deleted')

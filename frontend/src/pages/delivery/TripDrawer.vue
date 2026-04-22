@@ -53,12 +53,14 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { X, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { useDeliveryStore } from '../../stores/delivery'
+import { useConfirm } from '../../composables/useConfirm'
 import type { DeliveryTrip } from '../../types'
 
 const props = defineProps<{ tripId: string }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'changed'): void }>()
 
 const store = useDeliveryStore()
+const confirm = useConfirm()
 const trip = ref<DeliveryTrip | null>(null)
 
 async function load() {
@@ -82,14 +84,14 @@ async function move(stopId: string, newIdx: number) {
 }
 
 async function remove(stopId: string) {
-  if (!confirm('Remove this stop from the trip? The order will return to READY.')) return
+  if (!(await confirm.show('Remove Stop', 'Remove this stop from the trip? The order will return to READY.', { confirmLabel: 'Remove' }))) return
   await store.removeStop(stopId)
   await load()
   emit('changed')
 }
 
 async function cancel() {
-  if (!confirm('Cancel this entire trip?')) return
+  if (!(await confirm.show('Cancel Trip', 'Cancel this entire trip?', { confirmLabel: 'Cancel Trip' }))) return
   await store.cancelTrip(props.tripId)
   await load()
   emit('changed')

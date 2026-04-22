@@ -165,12 +165,14 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import api from '../../lib/api'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
 import BaseButton from '../../components/base/BaseButton.vue'
 import BaseInput from '../../components/base/BaseInput.vue'
 import BaseModal from '../../components/base/BaseModal.vue'
 import { Plus, Pencil, Trash2, Send, X, CheckCircle, XCircle } from 'lucide-vue-next'
 
 const toast = useToast()
+const confirm = useConfirm()
 
 const categories = ref<any[]>([])
 const allSuppliers = ref<any[]>([])
@@ -250,7 +252,7 @@ async function handleSaveCategory() {
 }
 
 async function handleDeleteCategory(cat: any) {
-  if (!confirm(`Delete "${cat.name}"?`)) return
+  if (!(await confirm.show('Delete Category', `Delete "${cat.name}"?`))) return
   try {
     await api.delete(`/quotation-broadcast/supplier-categories/${cat.id}`)
     toast.success('Category deleted')

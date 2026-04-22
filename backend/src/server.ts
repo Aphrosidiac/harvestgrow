@@ -3,6 +3,8 @@ import cors from '@fastify/cors'
 import formbody from '@fastify/formbody'
 import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
+import swagger from '@fastify/swagger'
+import swaggerUi from '@fastify/swagger-ui'
 import { env } from './config/env.js'
 import prismaPlugin from './plugins/prisma.js'
 import redisPlugin from './plugins/redis.js'
@@ -63,11 +65,31 @@ async function start() {
   })
   await app.register(formbody)
   await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024, files: 10 } })
+  await app.register(swagger, {
+    openapi: {
+      info: { title: 'HarvestGrow API', version: '1.0.0', description: 'HarvestGrow ERP API' },
+      servers: [{ url: '/' }],
+    },
+  })
+  await app.register(swaggerUi, { routePrefix: '/docs' })
   await app.register(prismaPlugin)
   await app.register(redisPlugin)
 
   // Security (rate limiter uses Redis store for cluster-wide state)
-  await app.register(helmet, { contentSecurityPolicy: false })
+  await app.register(helmet, {
+    contentSecurityPolicy: isProd ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    } : false,
+  })
   await app.register(rateLimit, {
     max: 100,
     timeWindow: '1 minute',

@@ -75,9 +75,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '../../composables/useToast'
+import { useUnsavedChanges } from '../../composables/useUnsavedChanges'
 import api from '../../lib/api'
 import BaseInput from '../../components/base/BaseInput.vue'
 import BaseSelect from '../../components/base/BaseSelect.vue'
@@ -87,6 +88,7 @@ import { ArrowLeft, Plus, Trash2 } from 'lucide-vue-next'
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const { markDirty, markClean } = useUnsavedChanges()
 const isEdit = computed(() => !!route.params.id)
 const saving = ref(false)
 const suppliers = ref<any[]>([])
@@ -99,6 +101,8 @@ const form = reactive({
   notes: '',
   items: [{ description: '', itemCode: '', quantity: 1, unitPrice: 0 }] as any[],
 })
+
+watch(form, () => markDirty(), { deep: true })
 
 const calculatedTotal = computed(() =>
   form.items.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0), 0)
@@ -164,9 +168,11 @@ async function handleSave() {
     } else {
       const { data } = await api.post('/purchase-invoices', payload)
       toast.success('Purchase invoice created')
+      markClean()
       router.push(`/app/purchase-invoices/${data.data.id}`)
       return
     }
+    markClean()
     router.push('/app/purchase-invoices')
   } catch (e: any) {
     toast.error(e.response?.data?.message || 'Failed to save')

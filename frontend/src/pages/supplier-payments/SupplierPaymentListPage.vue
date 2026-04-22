@@ -83,6 +83,7 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import api from '../../lib/api'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
 import BaseTable from '../../components/base/BaseTable.vue'
 import BaseButton from '../../components/base/BaseButton.vue'
 import BaseModal from '../../components/base/BaseModal.vue'
@@ -91,6 +92,7 @@ import BaseSelect from '../../components/base/BaseSelect.vue'
 import { Plus, Trash2 } from 'lucide-vue-next'
 
 const toast = useToast()
+const confirm = useConfirm()
 
 const payments = ref<any[]>([])
 const suppliers = ref<any[]>([])
@@ -172,7 +174,7 @@ async function handleCreate() {
 }
 
 async function handleDelete(payment: any) {
-  if (!confirm(`Delete payment ${payment.paymentNumber}?`)) return
+  if (!(await confirm.show('Delete Payment', `Delete payment ${payment.paymentNumber}?`))) return
   try {
     await api.delete(`/supplier-payments/${payment.id}`)
     toast.success('Payment deleted')

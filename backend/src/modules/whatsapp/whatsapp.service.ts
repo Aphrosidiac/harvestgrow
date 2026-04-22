@@ -10,6 +10,7 @@ let currentQR: string | null = null
 let connectionStatus: 'disconnected' | 'qr' | 'connecting' | 'connected' = 'disconnected'
 let connectedPhone: string | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+let reconnectAttempt = 0
 let messageHandler: ((phone: string, text: string, contactName: string | null) => Promise<string | null>) | null = null
 
 export function onMessage(handler: (phone: string, text: string, contactName: string | null) => Promise<string | null>) {
@@ -66,6 +67,7 @@ export async function initConnection() {
         currentQR = null
         connectionStatus = 'connected'
         connectedPhone = socket?.user?.id?.split(':')[0] || null
+        reconnectAttempt = 0
         console.log(`[WhatsApp] Connected as +${connectedPhone}`)
         clearReconnectTimer()
       }
@@ -81,9 +83,11 @@ export async function initConnection() {
         socket = null
 
         if (shouldReconnect) {
-          console.log('[WhatsApp] Will reconnect in 5 seconds...')
+          const delay = Math.min(5000 * Math.pow(2, reconnectAttempt), 300000)
+          reconnectAttempt++
+          console.log(`[WhatsApp] Will reconnect in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempt})...`)
           clearReconnectTimer()
-          reconnectTimer = setTimeout(() => initConnection(), 5000)
+          reconnectTimer = setTimeout(() => initConnection(), delay)
         } else {
           cleanSession()
         }

@@ -149,10 +149,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSalesOrderStore } from '../../stores/salesOrders'
 import { useToast } from '../../composables/useToast'
+import { useUnsavedChanges } from '../../composables/useUnsavedChanges'
 import api from '../../lib/api'
 import BaseButton from '../../components/base/BaseButton.vue'
 import BaseInput from '../../components/base/BaseInput.vue'
@@ -163,6 +164,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useSalesOrderStore()
 const toast = useToast()
+const { markDirty, markClean } = useUnsavedChanges()
 const saving = ref(false)
 
 const isEdit = computed(() => !!route.params.id)
@@ -199,6 +201,8 @@ const form = reactive({
   discountAmount: 0,
   items: [] as FormItem[],
 })
+
+watch(form, () => markDirty(), { deep: true })
 
 const customerSearch = ref('')
 const customerResults = ref<any[]>([])
@@ -306,6 +310,7 @@ async function handleSubmit() {
       await store.createSalesOrder(payload)
       toast.success('Sales order created')
     }
+    markClean()
     router.push('/app/sales-order')
   } catch (e: any) {
     toast.error(e.response?.data?.message || 'Failed to save')

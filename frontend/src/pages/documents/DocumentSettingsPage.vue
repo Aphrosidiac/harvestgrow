@@ -219,6 +219,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useDocumentStore } from '../../stores/documents'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
 import BaseButton from '../../components/base/BaseButton.vue'
 import BaseInput from '../../components/base/BaseInput.vue'
 import BaseSelect from '../../components/base/BaseSelect.vue'
@@ -228,6 +229,7 @@ import type { DocumentType } from '../../types'
 
 const store = useDocumentStore()
 const toast = useToast()
+const confirm = useConfirm()
 
 const activeType = ref<string>('INVOICE')
 const activeTab = ref<'settings' | 'payment-terms' | 'kv'>('settings')
@@ -338,7 +340,7 @@ async function handleAddTerm() {
 }
 
 async function handleDeleteTerm(id: string) {
-  if (!confirm('Delete this payment term?')) return
+  if (!(await confirm.show('Delete Payment Term', 'Delete this payment term?'))) return
   try {
     await store.deletePaymentTerm(id)
     toast.success('Payment term deleted')

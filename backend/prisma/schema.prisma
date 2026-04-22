@@ -316,6 +316,8 @@ model Document {
   @@index([documentNumber])
   @@index([issueDate])
   @@index([status])
+  @@index([branchId, status])
+  @@index([branchId, documentType, status])
   @@map("documents")
 }
 
@@ -383,6 +385,7 @@ model Payment {
   createdBy User     @relation("PaymentCreatedBy", fields: [createdById], references: [id])
 
   @@index([documentId])
+  @@index([createdAt])
   @@map("payments")
 }
 

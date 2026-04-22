@@ -41,7 +41,7 @@
     </div>
 
     <!-- Flat Table View -->
-    <BaseTable :columns="columns" :data="stock.items" :loading="stock.loading" empty-text="No stock items found.">
+    <BaseTable :columns="columns" :data="stock.items" :loading="stock.loading" empty-text="No stock items found." mobile-cards>
       <template #cell-itemCode="{ value }">
         <span class="font-mono text-green-700">{{ value }}</span>
       </template>

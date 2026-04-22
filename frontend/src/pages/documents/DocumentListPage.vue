@@ -61,7 +61,7 @@
     </div>
 
     <!-- Table -->
-    <BaseTable :columns="columns" :data="store.documents" :loading="store.loading" empty-text="No documents found.">
+    <BaseTable :columns="columns" :data="store.documents" :loading="store.loading" empty-text="No documents found." mobile-cards>
       <template #cell-documentNumber="{ value, row }">
         <RouterLink :to="`/app/documents/${row.id}`" class="font-mono text-green-600 hover:text-green-500">
           {{ value }}
@@ -121,6 +121,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useDocumentStore } from '../../stores/documents'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
 import BaseButton from '../../components/base/BaseButton.vue'
 import BaseTable from '../../components/base/BaseTable.vue'
 import BasePagination from '../../components/base/BasePagination.vue'
@@ -130,6 +131,7 @@ import type { DocumentType } from '../../types'
 
 const store = useDocumentStore()
 const toast = useToast()
+const confirm = useConfirm()
 const route = useRoute()
 
 const activeType = ref<DocumentType>((route.query.type as DocumentType) || 'INVOICE')
@@ -194,7 +196,7 @@ function fetchData() {
 }
 
 async function handleDelete(doc: any) {
-  if (!confirm(`Delete ${doc.documentNumber}?`)) return
+  if (!(await confirm.show('Delete Document', `Delete ${doc.documentNumber}?`))) return
   try {
     await store.deleteDocument(doc.id)
     toast.success('Document deleted')

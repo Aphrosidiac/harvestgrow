@@ -35,11 +35,15 @@ export async function getStats(request: FastifyRequest, reply: FastifyReply) {
   ] = await Promise.all([
     request.server.prisma.stockItem.count({ where: { branchId, isActive: true } }),
     request.server.prisma.customer.count({ where: { branchId } }),
-    request.server.prisma.document.findMany({
+    request.server.prisma.document.aggregate({
       where: { branchId, documentType: 'INVOICE', status: { notIn: ['VOID', 'CANCELLED', 'DRAFT'] }, issueDate: { gte: today } },
+      _sum: { totalAmount: true },
+      _count: true,
     }),
-    request.server.prisma.document.findMany({
+    request.server.prisma.document.aggregate({
       where: { branchId, documentType: 'INVOICE', status: { notIn: ['VOID', 'CANCELLED', 'DRAFT'] }, issueDate: { gte: monthStart } },
+      _sum: { totalAmount: true },
+      _count: true,
     }),
     request.server.prisma.document.count({
       where: { branchId, documentType: 'INVOICE', status: { in: ['OUTSTANDING', 'PARTIAL'] } },
@@ -139,8 +143,8 @@ export async function getStats(request: FastifyRequest, reply: FastifyReply) {
     }),
   ])
 
-  const revenueToday = invoicesToday.reduce((sum, inv) => sum + inv.totalAmount.toNumber(), 0)
-  const revenueThisMonth = invoicesMonth.reduce((sum, inv) => sum + inv.totalAmount.toNumber(), 0)
+  const revenueToday = invoicesToday._sum.totalAmount?.toNumber() ?? 0
+  const revenueThisMonth = invoicesMonth._sum.totalAmount?.toNumber() ?? 0
 
   const documentBreakdown = Object.fromEntries(
     docCounts.map((d) => [d.documentType, d._count])
@@ -222,8 +226,8 @@ export async function getStats(request: FastifyRequest, reply: FastifyReply) {
   const data = {
     totalItems,
     totalCustomers,
-    invoicesToday: invoicesToday.length,
-    invoicesThisMonth: invoicesMonth.length,
+    invoicesToday: invoicesToday._count,
+    invoicesThisMonth: invoicesMonth._count,
     revenueToday,
     revenueThisMonth,
     outstandingInvoices,
@@ -257,30 +261,35 @@ export async function getRevenueChart(request: FastifyRequest, reply: FastifyRep
   const cached = await request.server.cache.get(cacheKey)
   if (cached) return reply.send({ success: true, data: cached })
 
-  // Last 7 days revenue
+  // Last 7 days revenue — single query instead of 7
+  const weekStart = new Date()
+  weekStart.setDate(weekStart.getDate() - 6)
+  weekStart.setHours(0, 0, 0, 0)
+
+  const rawDays = await request.server.prisma.$queryRaw<Array<{ day: Date; revenue: number; count: number }>>`
+    SELECT DATE_TRUNC('day', "issueDate") as day,
+           SUM("totalAmount")::float as revenue,
+           COUNT(*)::int as count
+    FROM documents
+    WHERE "branchId" = ${branchId}
+      AND "documentType" = 'INVOICE'
+      AND status NOT IN ('VOID', 'CANCELLED', 'DRAFT')
+      AND "issueDate" >= ${weekStart}
+    GROUP BY day
+    ORDER BY day ASC
+  `
+
+  const revenueMap = new Map<string, { revenue: number; count: number }>()
+  for (const r of rawDays) {
+    revenueMap.set(new Date(r.day).toISOString().slice(0, 10), { revenue: r.revenue, count: r.count })
+  }
+
   const days: { date: string; revenue: number; count: number }[] = []
   for (let i = 6; i >= 0; i--) {
-    const date = new Date()
-    date.setDate(date.getDate() - i)
-    date.setHours(0, 0, 0, 0)
-    const nextDay = new Date(date)
-    nextDay.setDate(nextDay.getDate() + 1)
-
-    const invoices = await request.server.prisma.document.findMany({
-      where: {
-        branchId,
-        documentType: 'INVOICE',
-        status: { notIn: ['VOID', 'CANCELLED', 'DRAFT'] },
-        issueDate: { gte: date, lt: nextDay },
-      },
-      select: { totalAmount: true },
-    })
-
-    days.push({
-      date: date.toISOString().split('T')[0],
-      revenue: invoices.reduce((sum, inv) => sum + inv.totalAmount.toNumber(), 0),
-      count: invoices.length,
-    })
+    const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0, 0, 0, 0)
+    const key = d.toISOString().slice(0, 10)
+    const entry = revenueMap.get(key) ?? { revenue: 0, count: 0 }
+    days.push({ date: key, ...entry })
   }
 
   await request.server.cache.set(cacheKey, days, 60)

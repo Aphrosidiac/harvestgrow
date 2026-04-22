@@ -15,7 +15,18 @@
       </div>
     </div>
 
-    <div v-if="dashboard.loading" class="text-stone-500">Loading dashboard...</div>
+    <div v-if="dashboard.loading" class="space-y-6">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div v-for="i in 4" :key="i" class="animate-pulse bg-stone-200 rounded-xl h-24" />
+      </div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div v-for="i in 4" :key="i" class="animate-pulse bg-stone-200 rounded-xl h-24" />
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="animate-pulse bg-stone-200 rounded-xl h-64" />
+        <div class="animate-pulse bg-stone-200 rounded-xl h-64" />
+      </div>
+    </div>
 
     <div v-else-if="dashboard.error" class="bg-red-900/20 border border-red-800 rounded-xl p-6 text-center">
       <p class="text-red-400">{{ dashboard.error }}</p>

@@ -150,6 +150,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { ChevronLeft, X, CheckCircle, MapPin } from 'lucide-vue-next'
 import { useDeliveryStore } from '../../stores/delivery'
+import { useConfirm } from '../../composables/useConfirm'
 import SignaturePad from '../../components/delivery/SignaturePad.vue'
 import PhotoCapture from '../../components/delivery/PhotoCapture.vue'
 import StopCard from '../../components/delivery/StopCard.vue'
@@ -157,6 +158,7 @@ import type { DeliveryStop, DeliveryTrip } from '../../types'
 
 const route = useRoute()
 const store = useDeliveryStore()
+const confirm = useConfirm()
 const trip = ref<DeliveryTrip | null>(null)
 const saving = ref(false)
 
@@ -253,7 +255,7 @@ async function submitFailed() {
 }
 
 async function skip(stopId: string) {
-  if (!confirm('Skip this stop?')) return
+  if (!(await confirm.show('Skip Stop', 'Skip this stop?', { confirmLabel: 'Skip' }))) return
   await store.stopSkipped(stopId)
   await load()
 }

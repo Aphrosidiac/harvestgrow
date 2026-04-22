@@ -1,6 +1,70 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
 import { getPaginationParams, paginatedResponse } from '../../utils/pagination.js'
+import { validate } from '../../utils/validation.js'
 import { Prisma } from '@prisma/client'
+
+const vehicleSchema = z.object({
+  plate: z.string().min(1, 'Plate number is required'),
+  make: z.string().optional(),
+  model: z.string().optional(),
+  color: z.string().optional(),
+  engineNo: z.string().optional(),
+  mileage: z.string().optional(),
+})
+
+const createCustomerSchema = z.object({
+  name: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+  companyName: z.string().optional(),
+  address: z.string().optional(),
+  companyCode: z.string().optional(),
+  branchLocation: z.string().optional(),
+  branchCode: z.string().optional(),
+  country: z.string().optional(),
+  creditTerms: z.string().optional(),
+  customerGroupId: z.string().optional(),
+  quotationTemplate: z.string().optional(),
+  arrBook: z.string().optional(),
+  vehicles: z.array(vehicleSchema).optional(),
+})
+
+const updateCustomerSchema = z.object({
+  name: z.string().optional(),
+  phone: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  companyName: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  companyCode: z.string().nullable().optional(),
+  branchLocation: z.string().nullable().optional(),
+  branchCode: z.string().nullable().optional(),
+  country: z.string().nullable().optional(),
+  creditTerms: z.string().nullable().optional(),
+  customerGroupId: z.string().nullable().optional(),
+  quotationTemplate: z.string().nullable().optional(),
+  arrBook: z.string().nullable().optional(),
+})
+
+const addVehicleSchema = z.object({
+  plate: z.string().min(1, 'Plate number is required'),
+  make: z.string().optional(),
+  model: z.string().optional(),
+  color: z.string().optional(),
+  engineNo: z.string().optional(),
+  mileage: z.string().optional(),
+  isDefault: z.boolean().optional(),
+})
+
+const updateVehicleSchema = z.object({
+  plate: z.string().optional(),
+  make: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
+  engineNo: z.string().nullable().optional(),
+  mileage: z.string().nullable().optional(),
+  isDefault: z.boolean().optional(),
+})
 
 export async function listCustomers(
   request: FastifyRequest<{ Querystring: Record<string, any> }>,
@@ -97,14 +161,14 @@ export async function getCustomer(
 }
 
 export async function createCustomer(
-  request: FastifyRequest<{
-    Body: { name: string; phone?: string; email?: string; companyName?: string; vehicles?: { plate: string; make?: string; model?: string; color?: string; engineNo?: string; mileage?: string }[] }
-  }>,
+  request: FastifyRequest,
   reply: FastifyReply
 ) {
+  const data = validate(createCustomerSchema, request.body, reply)
+  if (!data) return
+
   const { branchId } = request.user
-  const body = request.body as any
-  const { name, phone, email, companyName, vehicles, companyCode, branchLocation, branchCode, country, creditTerms, customerGroupId, quotationTemplate, arrBook, address } = body
+  const { name, phone, email, companyName, vehicles, companyCode, branchLocation, branchCode, country, creditTerms, customerGroupId, quotationTemplate, arrBook, address } = data
 
   const customerName = name?.trim() || phone?.trim() || 'Walk-in'
 
@@ -145,13 +209,15 @@ export async function createCustomer(
 }
 
 export async function updateCustomer(
-  request: FastifyRequest<{ Params: { id: string }; Body: { name?: string; phone?: string; email?: string; companyName?: string } }>,
+  request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) {
+  const data = validate(updateCustomerSchema, request.body, reply)
+  if (!data) return
+
   const { branchId } = request.user
   const { id } = request.params
-  const body = request.body as any
-  const { name, phone, email, companyName, address, companyCode, branchLocation, branchCode, country, creditTerms, customerGroupId, quotationTemplate, arrBook } = body
+  const { name, phone, email, companyName, address, companyCode, branchLocation, branchCode, country, creditTerms, customerGroupId, quotationTemplate, arrBook } = data
 
   const existing = await request.server.prisma.customer.findFirst({ where: { id, branchId } })
   if (!existing) {
@@ -205,23 +271,19 @@ export async function deleteCustomer(
 
 // ─── VEHICLES ──────────────────────────────────────────────
 export async function addVehicle(
-  request: FastifyRequest<{
-    Params: { id: string }
-    Body: { plate: string; make?: string; model?: string; color?: string; engineNo?: string; mileage?: string; isDefault?: boolean }
-  }>,
+  request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) {
+  const data = validate(addVehicleSchema, request.body, reply)
+  if (!data) return
+
   const { branchId } = request.user
   const { id } = request.params
-  const { plate, make, model, color, engineNo, mileage, isDefault } = request.body
+  const { plate, make, model, color, engineNo, mileage, isDefault } = data
 
   const customer = await request.server.prisma.customer.findFirst({ where: { id, branchId } })
   if (!customer) {
     return reply.status(404).send({ success: false, message: 'Customer not found' })
-  }
-
-  if (!plate?.trim()) {
-    return reply.status(400).send({ success: false, message: 'Plate number is required' })
   }
 
   // If setting as default, unset others
@@ -249,14 +311,14 @@ export async function addVehicle(
 }
 
 export async function updateVehicle(
-  request: FastifyRequest<{
-    Params: { id: string; vid: string }
-    Body: { plate?: string; make?: string; model?: string; color?: string; engineNo?: string; mileage?: string; isDefault?: boolean }
-  }>,
+  request: FastifyRequest<{ Params: { id: string; vid: string } }>,
   reply: FastifyReply
 ) {
+  const data = validate(updateVehicleSchema, request.body, reply)
+  if (!data) return
+
   const { id, vid } = request.params
-  const { plate, make, model, color, engineNo, mileage, isDefault } = request.body
+  const { plate, make, model, color, engineNo, mileage, isDefault } = data
 
   if (isDefault) {
     await request.server.prisma.vehicle.updateMany({

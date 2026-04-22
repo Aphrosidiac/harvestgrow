@@ -34,12 +34,31 @@ Never share cost prices, internal data, or staff information.`
 
 let prisma: PrismaClient | null = null
 
+const phoneRateLimit = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT_MAX = 10
+const RATE_LIMIT_WINDOW = 5 * 60 * 1000
+
+function isPhoneRateLimited(phone: string): boolean {
+  const now = Date.now()
+  const entry = phoneRateLimit.get(phone)
+  if (!entry || now > entry.resetAt) {
+    phoneRateLimit.set(phone, { count: 1, resetAt: now + RATE_LIMIT_WINDOW })
+    return false
+  }
+  entry.count++
+  return entry.count > RATE_LIMIT_MAX
+}
+
 export function init(prismaClient: PrismaClient) {
   prisma = prismaClient
 }
 
 export async function processMessage(phone: string, text: string, contactName: string | null): Promise<string | null> {
   if (!client || !prisma) return null
+
+  if (isPhoneRateLimited(phone)) {
+    return 'You are sending messages too quickly. Please wait a few minutes before trying again.'
+  }
 
   const branch = await prisma.branch.findFirst({ where: { code: 'HG-JB' } })
   if (!branch) return null

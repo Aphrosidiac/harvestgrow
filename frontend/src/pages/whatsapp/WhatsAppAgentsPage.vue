@@ -172,10 +172,12 @@ import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '../../lib/api'
 import { useToast } from '../../composables/useToast'
+import { useConfirm } from '../../composables/useConfirm'
 import BaseButton from '../../components/base/BaseButton.vue'
 import { X, MessageCircle } from 'lucide-vue-next'
 
 const toast = useToast()
+const confirm = useConfirm()
 
 const activeTab = ref<'EMPLOYEE' | 'CLIENT'>('EMPLOYEE')
 const waConnected = ref(false)
@@ -286,7 +288,7 @@ async function selectChat(chat: any) {
 
 async function handleDeleteChat() {
   if (!selectedChat.value) return
-  if (!confirm('Delete this chat and all messages?')) return
+  if (!(await confirm.show('Delete Chat', 'Delete this chat and all messages?'))) return
   try {
     await api.delete(`/whatsapp-agents/chats/${selectedChat.value.id}`)
     toast.success('Chat deleted')

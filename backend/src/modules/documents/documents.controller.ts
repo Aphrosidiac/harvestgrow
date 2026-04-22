@@ -1,7 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
 import { getPaginationParams, paginatedResponse } from '../../utils/pagination.js'
 import { DocumentType, Prisma } from '@prisma/client'
 import { recordStockHistory } from '../stock/stock.history.js'
+import { validate } from '../../utils/validation.js'
 import {
   generateDocumentNumber,
   calculateItemTotals,
@@ -10,6 +12,60 @@ import {
   getValidStatuses,
   getConversionTargets,
 } from './documents.service.js'
+
+// ─── ZOD SCHEMAS ──────────────────────────────────────────
+
+const documentItemSchema = z.object({
+  stockItemId: z.string().optional(),
+  itemCode: z.string().optional(),
+  description: z.string().min(1, 'Item description is required'),
+  quantity: z.number().positive('Quantity must be positive'),
+  unit: z.string().optional(),
+  unitPrice: z.number().min(0, 'Unit price cannot be negative'),
+  discountPercent: z.number().min(0).max(100).optional(),
+  taxRate: z.number().min(0).max(100).optional(),
+  sortOrder: z.number().int().optional(),
+  serviceDate: z.string().optional(),
+})
+
+const createDocumentSchema = z.object({
+  documentType: z.enum(['QUOTATION', 'INVOICE', 'RECEIPT', 'DELIVERY_ORDER']),
+  customerId: z.string().optional(),
+  vehicleId: z.string().optional(),
+  customerName: z.string().optional(),
+  customerCompanyName: z.string().optional(),
+  customerPhone: z.string().optional(),
+  customerEmail: z.string().email().optional().or(z.literal('')),
+  vehiclePlate: z.string().optional(),
+  vehicleModel: z.string().optional(),
+  vehicleMileage: z.string().optional(),
+  vehicleColor: z.string().optional(),
+  vehicleEngineNo: z.string().optional(),
+  foremanId: z.string().optional(),
+  issueDate: z.string().optional(),
+  dueDate: z.string().optional(),
+  notes: z.string().optional(),
+  terms: z.string().optional(),
+  footerNote: z.string().optional(),
+  discountAmount: z.number().min(0).optional(),
+  items: z.array(documentItemSchema).min(1, 'At least one item is required'),
+})
+
+const addPaymentSchema = z.object({
+  amount: z.number().positive('Payment amount must be positive'),
+  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'CHEQUE', 'CREDIT_CARD', 'EWALLET', 'TNG', 'BOOST']),
+  referenceNumber: z.string().optional(),
+  notes: z.string().optional(),
+  bankName: z.string().optional(),
+})
+
+const updateDocumentStatusSchema = z.object({
+  status: z.string().min(1, 'Status is required'),
+})
+
+const convertDocumentSchema = z.object({
+  targetType: z.enum(['QUOTATION', 'INVOICE', 'RECEIPT', 'DELIVERY_ORDER']),
+})
 
 interface DocumentItemInput {
   stockItemId?: string
@@ -129,11 +185,11 @@ export async function createDocument(
   reply: FastifyReply
 ) {
   const { branchId, userId } = request.user
-  const { documentType, items, discountAmount = 0, ...body } = request.body
 
-  if (!documentType || !items || items.length === 0) {
-    return reply.status(400).send({ success: false, message: 'Document type and at least one item are required' })
-  }
+  const parsed = validate(createDocumentSchema, request.body, reply)
+  if (!parsed) return
+
+  const { documentType, items, discountAmount = 0, ...body } = parsed
 
   const document = await request.server.prisma.$transaction(async (tx) => {
     // Generate document number
@@ -425,7 +481,10 @@ export async function updateDocumentStatus(
 ) {
   const { branchId } = request.user
   const { id } = request.params
-  const { status } = request.body
+
+  const body = validate(updateDocumentStatusSchema, request.body, reply)
+  if (!body) return
+  const { status } = body
 
   const existing = await request.server.prisma.document.findFirst({
     where: { id, branchId },
@@ -672,11 +731,10 @@ export async function addPayment(
 ) {
   const { branchId, userId } = request.user
   const { id } = request.params
-  const { amount, paymentMethod, referenceNumber, notes, bankName } = request.body
 
-  if (!amount || amount <= 0) {
-    return reply.status(400).send({ success: false, message: 'Payment amount must be positive' })
-  }
+  const body = validate(addPaymentSchema, request.body, reply)
+  if (!body) return
+  const { amount, paymentMethod, referenceNumber, notes, bankName } = body
 
   const existing = await request.server.prisma.document.findFirst({ where: { id, branchId } })
   if (!existing) {
@@ -732,7 +790,10 @@ export async function convertDocument(
 ) {
   const { branchId, userId } = request.user
   const { id } = request.params
-  const { targetType } = request.body
+
+  const body = validate(convertDocumentSchema, request.body, reply)
+  if (!body) return
+  const { targetType } = body
 
   const source = await request.server.prisma.document.findFirst({
     where: { id, branchId },

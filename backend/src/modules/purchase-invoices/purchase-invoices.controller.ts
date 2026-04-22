@@ -1,7 +1,37 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
 import { getPaginationParams, paginatedResponse } from '../../utils/pagination.js'
 import { Prisma } from '@prisma/client'
 import { recordStockHistory } from '../stock/stock.history.js'
+import { validate } from '../../utils/validation.js'
+
+// ─── ZOD SCHEMAS ──────────────────────────────────────────
+
+const purchaseInvoiceItemSchema = z.object({
+  stockItemId: z.string().optional(),
+  itemCode: z.string().optional(),
+  description: z.string().min(1, 'Item description is required'),
+  quantity: z.number().positive('Quantity must be positive'),
+  unitPrice: z.number().min(0, 'Unit price cannot be negative'),
+})
+
+const createPurchaseInvoiceSchema = z.object({
+  supplierId: z.string().min(1, 'Supplier ID is required'),
+  invoiceNumber: z.string().min(1, 'Invoice number is required'),
+  items: z.array(purchaseInvoiceItemSchema).min(1, 'At least one item is required'),
+  notes: z.string().optional(),
+  issueDate: z.string().optional(),
+  receivedDate: z.string().optional(),
+})
+
+const updatePurchaseInvoiceSchema = z.object({
+  supplierId: z.string().min(1).optional(),
+  invoiceNumber: z.string().min(1).optional(),
+  items: z.array(purchaseInvoiceItemSchema).min(1).optional(),
+  notes: z.string().optional(),
+  issueDate: z.string().optional(),
+  receivedDate: z.string().nullable().optional(),
+})
 
 // ─── LIST ──────────────────────────────────────────────────
 export async function listPurchaseInvoices(
@@ -115,11 +145,10 @@ export async function createPurchaseInvoice(
   reply: FastifyReply
 ) {
   const { branchId, userId } = request.user
-  const { supplierId, invoiceNumber, items, notes, issueDate, receivedDate } = request.body
 
-  if (!supplierId || !invoiceNumber || !items?.length) {
-    return reply.status(400).send({ success: false, message: 'supplierId, invoiceNumber and items are required' })
-  }
+  const parsed = validate(createPurchaseInvoiceSchema, request.body, reply)
+  if (!parsed) return
+  const { supplierId, invoiceNumber, items, notes, issueDate, receivedDate } = parsed
 
   const internalNumber = await generateInternalNumber(request.server.prisma, branchId)
 
@@ -185,7 +214,10 @@ export async function updatePurchaseInvoice(
 ) {
   const { branchId } = request.user
   const { id } = request.params
-  const { supplierId, invoiceNumber, items, notes, issueDate, receivedDate } = request.body
+
+  const parsed = validate(updatePurchaseInvoiceSchema, request.body, reply)
+  if (!parsed) return
+  const { supplierId, invoiceNumber, items, notes, issueDate, receivedDate } = parsed
 
   const existing = await request.server.prisma.purchaseInvoice.findFirst({
     where: { id, branchId },

@@ -1,11 +1,35 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
 import { Prisma, OrderStatus, Role } from '@prisma/client'
 import { getPaginationParams, paginatedResponse } from '../../utils/pagination.js'
+import { validate } from '../../utils/validation.js'
 import {
   generateInvoiceFromOrder,
   generateDeliveryOrderFromOrder,
   resolveCustomerForOrder,
 } from '../documents/documents.generator.js'
+
+// ─── ZOD SCHEMAS ──────────────────────────────────────────
+
+const updateOrderStatusSchema = z.object({
+  status: z.enum([
+    'PENDING', 'CONFIRMED', 'PICKING', 'CUTTING', 'PACKING',
+    'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED',
+  ]),
+  note: z.string().optional(),
+})
+
+const cancelOrderSchema = z.object({
+  note: z.string().optional(),
+})
+
+const bulkGenerateInvoicesSchema = z.object({
+  date: z.string().optional(),
+})
+
+const generateDocFromOrderSchema = z.object({
+  customerId: z.string().optional(),
+})
 
 export async function listOrders(
   request: FastifyRequest<{ Querystring: Record<string, any> }>,
@@ -191,11 +215,10 @@ export async function updateOrderStatus(
 ) {
   const user = request.user as any
   const role = user.role as Role
-  const { status, note } = request.body || ({} as any)
 
-  if (!status || !(status in TRANSITIONS)) {
-    return reply.status(400).send({ success: false, message: 'Invalid status' })
-  }
+  const body = validate(updateOrderStatusSchema, request.body, reply)
+  if (!body) return
+  const { status, note } = body
 
   const result = await applyStatusTransition(
     request.server.prisma,
@@ -219,13 +242,17 @@ export async function generateInvoice(
   if (!['ADMIN', 'MANAGER'].includes(role)) {
     return reply.status(403).send({ success: false, message: 'ADMIN/MANAGER only' })
   }
+
+  const body = validate(generateDocFromOrderSchema, request.body ?? {}, reply)
+  if (!body) return
+
   try {
     const result = await request.server.prisma.$transaction(async (tx) => {
       return generateInvoiceFromOrder(tx as any, {
         branchId,
         orderId: request.params.id,
         createdById: userId,
-        customerId: request.body?.customerId,
+        customerId: body.customerId,
       })
     })
     return reply.send({ success: true, data: result })
@@ -244,13 +271,17 @@ export async function generateDeliveryOrder(
   if (!['ADMIN', 'MANAGER', 'PRODUCTION', 'PACKER'].includes(role)) {
     return reply.status(403).send({ success: false, message: 'Not allowed' })
   }
+
+  const body = validate(generateDocFromOrderSchema, request.body ?? {}, reply)
+  if (!body) return
+
   try {
     const result = await request.server.prisma.$transaction(async (tx) => {
       return generateDeliveryOrderFromOrder(tx as any, {
         branchId,
         orderId: request.params.id,
         createdById: userId,
-        customerId: request.body?.customerId,
+        customerId: body.customerId,
       })
     })
     return reply.send({ success: true, data: result })
@@ -269,7 +300,10 @@ export async function bulkGenerateInvoices(
   if (!['ADMIN', 'MANAGER'].includes(role)) {
     return reply.status(403).send({ success: false, message: 'ADMIN/MANAGER only' })
   }
-  const dateStr = request.body?.date
+
+  const body = validate(bulkGenerateInvoicesSchema, request.body ?? {}, reply)
+  if (!body) return
+  const dateStr = body.date
   const start = dateStr ? new Date(dateStr + 'T00:00:00.000Z') : new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z')
   const end = new Date(start.getTime() + 24 * 3600 * 1000)
 
@@ -334,13 +368,17 @@ export async function cancelOrder(
 ) {
   const user = request.user as any
   const role = user.role as Role
+
+  const body = validate(cancelOrderSchema, request.body ?? {}, reply)
+  if (!body) return
+
   const result = await applyStatusTransition(
     request.server.prisma,
     request.params.id,
     'CANCELLED',
     user.userId ?? null,
     role,
-    request.body?.note ?? null
+    body.note ?? null
   )
   if (!result.ok) return reply.status(result.status).send(result.body)
   return reply.send({ success: true, data: result.order })

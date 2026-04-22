@@ -50,10 +50,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStockStore } from '../../stores/stock'
 import { useToast } from '../../composables/useToast'
+import { useUnsavedChanges } from '../../composables/useUnsavedChanges'
 import BaseInput from '../../components/base/BaseInput.vue'
 import BaseSelect from '../../components/base/BaseSelect.vue'
 import BaseButton from '../../components/base/BaseButton.vue'
@@ -62,6 +63,7 @@ import { ArrowLeft } from 'lucide-vue-next'
 const router = useRouter()
 const stock = useStockStore()
 const toast = useToast()
+const { markDirty, markClean } = useUnsavedChanges()
 const saving = ref(false)
 
 const uomOptions = ['PCS', 'SET', 'BOX', 'UNIT', 'PAIR', 'KG', 'g', 'bundle', 'pack']
@@ -81,6 +83,8 @@ const form = reactive({
   cutOptions: '',
 })
 
+watch(form, () => markDirty(), { deep: true })
+
 async function handleSubmit() {
   saving.value = true
   try {
@@ -99,6 +103,7 @@ async function handleSubmit() {
       cutOptions: form.cutOptions || undefined,
     } as any)
     toast.success('Item created successfully')
+    markClean()
     router.push('/app/stock')
   } catch (e: any) {
     toast.error(e.response?.data?.message || 'Failed to create item')

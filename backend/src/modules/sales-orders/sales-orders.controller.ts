@@ -1,7 +1,47 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
 import { getPaginationParams, paginatedResponse } from '../../utils/pagination.js'
+import { validate } from '../../utils/validation.js'
 import { Prisma, SalesOrderStatus } from '@prisma/client'
 import { generateSalesOrderNumber, calculateItemTotals, calculateOrderTotals } from './sales-orders.service.js'
+
+const salesOrderItemSchema = z.object({
+  stockItemId: z.string().optional(),
+  itemCode: z.string().optional(),
+  description: z.string().min(1, 'Item description is required'),
+  quantity: z.coerce.number().positive('Quantity must be positive'),
+  unit: z.string().optional().default('PCS'),
+  unitPrice: z.coerce.number().min(0, 'Unit price cannot be negative'),
+  discountPercent: z.coerce.number().min(0).max(100).optional().default(0),
+  taxRate: z.coerce.number().min(0).optional().default(0),
+  notes: z.string().optional(),
+})
+
+const createSalesOrderSchema = z.object({
+  customerId: z.string().optional(),
+  deliveryDate: z.string().min(1, 'Delivery date is required'),
+  deliverySlot: z.string().min(1, 'Delivery slot is required'),
+  deliveryAddress: z.string().optional(),
+  truck: z.string().optional(),
+  poNumber: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  notes: z.string().optional(),
+  discountAmount: z.coerce.number().min(0).optional().default(0),
+  items: z.array(salesOrderItemSchema).min(1, 'At least one item is required'),
+})
+
+const updateSalesOrderSchema = z.object({
+  customerId: z.string().optional(),
+  deliveryDate: z.string().optional(),
+  deliverySlot: z.string().optional(),
+  deliveryAddress: z.string().optional(),
+  truck: z.string().optional(),
+  poNumber: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  notes: z.string().optional(),
+  discountAmount: z.coerce.number().min(0).optional().default(0),
+  items: z.array(salesOrderItemSchema).optional(),
+})
 
 const VALID_TRANSITIONS: Record<SalesOrderStatus, SalesOrderStatus[]> = {
   PENDING: ['AWAITING_SHIPMENT', 'CANCELLED', 'COMBINED'],
@@ -121,21 +161,17 @@ export async function getSalesOrder(
 }
 
 export async function createSalesOrder(
-  request: FastifyRequest<{ Body: any }>,
+  request: FastifyRequest,
   reply: FastifyReply
 ) {
+  const data = validate(createSalesOrderSchema, request.body, reply)
+  if (!data) return
+
   const { branchId, userId } = request.user
   const {
     customerId, deliveryDate, deliverySlot, deliveryAddress, truck,
     poNumber, invoiceNumber, notes, discountAmount, items,
-  } = request.body as any
-
-  if (!deliveryDate || !deliverySlot) {
-    return reply.status(400).send({ success: false, message: 'Delivery date and slot are required' })
-  }
-  if (!items?.length) {
-    return reply.status(400).send({ success: false, message: 'At least one item is required' })
-  }
+  } = data
 
   const result = await request.server.prisma.$transaction(async (tx) => {
     const salesOrderNumber = await generateSalesOrderNumber(tx as any, branchId)
@@ -215,15 +251,18 @@ export async function createSalesOrder(
 }
 
 export async function updateSalesOrder(
-  request: FastifyRequest<{ Params: { id: string }; Body: any }>,
+  request: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply
 ) {
+  const data = validate(updateSalesOrderSchema, request.body, reply)
+  if (!data) return
+
   const { branchId } = request.user
   const { id } = request.params
   const {
     customerId, deliveryDate, deliverySlot, deliveryAddress, truck,
     poNumber, invoiceNumber, notes, discountAmount, items,
-  } = request.body as any
+  } = data
 
   const existing = await request.server.prisma.salesOrder.findFirst({
     where: { id, branchId },

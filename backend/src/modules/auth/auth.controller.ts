@@ -1,5 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
+import { validate } from '../../utils/validation.js'
 import { verifyPassword } from '../../utils/password.js'
+
+const loginSchema = z.object({
+  email: z.string().email('Valid email is required'),
+  password: z.string().min(1, 'Password is required'),
+})
 
 async function writeAudit(request: FastifyRequest, data: { userId?: string | null; branchId?: string | null; action: string; entity: string; entityId?: string | null; changes?: any }) {
   try {
@@ -23,11 +30,10 @@ async function writeAudit(request: FastifyRequest, data: { userId?: string | nul
 }
 
 export async function login(request: FastifyRequest<{ Body: { email: string; password: string } }>, reply: FastifyReply) {
-  const { email, password } = request.body
+  const data = validate(loginSchema, request.body, reply)
+  if (!data) return
 
-  if (!email || !password) {
-    return reply.status(400).send({ success: false, message: 'Email and password are required' })
-  }
+  const { email, password } = data
 
   const user = await request.server.prisma.user.findUnique({
     where: { email },

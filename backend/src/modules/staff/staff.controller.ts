@@ -1,7 +1,20 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
+import { validate } from '../../utils/validation.js'
 import { getPaginationParams, paginatedResponse } from '../../utils/pagination.js'
 import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+
+const createStaffSchema = z.object({
+  email: z.string().email('Valid email is required'),
+  name: z.string().min(1, 'Name is required'),
+  role: z.enum(['ADMIN', 'MANAGER', 'PRODUCTION', 'PACKER', 'DRIVER']).optional().default('PACKER'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  phone: z.string().optional().nullable(),
+  username: z.string().optional().nullable(),
+  jobTitle: z.string().optional().nullable(),
+  userGroup: z.enum(['SUPER_ADMIN', 'BOSS', 'ADMIN', 'INVENTORY_MANAGER']).optional().nullable(),
+})
 
 export async function listStaff(
   request: FastifyRequest<{ Querystring: Record<string, any> }>,
@@ -99,15 +112,10 @@ export async function createStaff(
   reply: FastifyReply
 ) {
   const { branchId } = request.user
-  const { name, email, password, username, phone, jobTitle, role, userGroup } = request.body
+  const data = validate(createStaffSchema, request.body, reply)
+  if (!data) return
 
-  if (!name?.trim() || !email?.trim() || !password) {
-    return reply.status(400).send({ success: false, message: 'Name, email, and password are required' })
-  }
-
-  if (password.length < 6) {
-    return reply.status(400).send({ success: false, message: 'Password must be at least 6 characters' })
-  }
+  const { name, email, password, username, phone, jobTitle, role, userGroup } = data
 
   // Check email uniqueness
   const existing = await request.server.prisma.user.findUnique({
@@ -127,12 +135,6 @@ export async function createStaff(
     }
   }
 
-  const validRoles = ['ADMIN', 'MANAGER', 'PRODUCTION', 'PACKER', 'DRIVER']
-  const userRole = role && validRoles.includes(role) ? role : 'PACKER'
-
-  const validGroups = ['SUPER_ADMIN', 'BOSS', 'ADMIN', 'INVENTORY_MANAGER']
-  const group = userGroup && validGroups.includes(userGroup) ? userGroup : null
-
   const passwordHash = await bcrypt.hash(password, 10)
 
   const staff = await request.server.prisma.user.create({
@@ -144,8 +146,8 @@ export async function createStaff(
       passwordHash,
       phone: phone?.trim() || null,
       jobTitle: jobTitle?.trim() || null,
-      role: userRole as any,
-      userGroup: group as any,
+      role: role as any,
+      userGroup: (userGroup ?? null) as any,
     },
     select: {
       id: true,

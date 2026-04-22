@@ -145,8 +145,10 @@ export async function broadcastQuotation(
   let sent = 0
   let failed = 0
 
-  for (const supplier of suppliers) {
+  for (let i = 0; i < suppliers.length; i++) {
+    const supplier = suppliers[i]
     try {
+      if (i > 0) await new Promise((r) => setTimeout(r, 1500))
       await waService.sendMessage(supplier.phone!, text)
       results.push({ supplier: supplier.companyName, phone: supplier.phone!, status: 'sent' })
       sent++

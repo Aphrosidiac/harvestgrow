@@ -1,7 +1,39 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
+import { validate } from '../../utils/validation.js'
 import { getPaginationParams, paginatedResponse } from '../../utils/pagination.js'
 import { Prisma } from '@prisma/client'
 import { recordStockHistory } from './stock.history.js'
+
+const createStockSchema = z.object({
+  itemCode: z.string().min(1, 'Item code is required'),
+  description: z.string().min(1, 'Description is required'),
+  categoryId: z.string().optional().nullable(),
+  costPrice: z.coerce.number().min(0, 'Cost price must be non-negative'),
+  sellPrice: z.coerce.number().min(0, 'Sell price must be non-negative'),
+  uom: z.string().optional().default('unit'),
+  minStock: z.coerce.number().min(0).optional().default(0),
+  quantity: z.coerce.number().min(0).optional().default(0),
+  isPerishable: z.boolean().optional().default(false),
+  shelfLifeDays: z.coerce.number().int().min(0).optional().nullable(),
+  cutOptions: z.any().optional().nullable(),
+  imageUrl: z.string().optional().nullable(),
+})
+
+const updateStockSchema = z.object({
+  itemCode: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  categoryId: z.string().optional().nullable(),
+  costPrice: z.coerce.number().min(0, 'Cost price must be non-negative').optional(),
+  sellPrice: z.coerce.number().min(0, 'Sell price must be non-negative').optional(),
+  uom: z.string().optional(),
+  minStock: z.coerce.number().min(0).optional(),
+  quantity: z.coerce.number().min(0).optional(),
+  isPerishable: z.boolean().optional(),
+  shelfLifeDays: z.coerce.number().int().min(0).optional().nullable(),
+  cutOptions: z.any().optional().nullable(),
+  imageUrl: z.string().optional().nullable(),
+})
 
 const ALLOWED_SORT_FIELDS = ['itemCode', 'description', 'costPrice', 'sellPrice', 'quantity', 'updatedAt', 'createdAt']
 
@@ -83,15 +115,10 @@ export async function createStock(
   reply: FastifyReply
 ) {
   const { branchId, userId } = request.user
-  const { itemCode, description, uom, costPrice, sellPrice, quantity, minStock, categoryId, imageUrl, isPerishable, shelfLifeDays, cutOptions } = request.body
+  const data = validate(createStockSchema, request.body, reply)
+  if (!data) return
 
-  if (!itemCode || !description) {
-    return reply.status(400).send({ success: false, message: 'Item code and description are required' })
-  }
-
-  if (costPrice < 0 || sellPrice < 0) {
-    return reply.status(400).send({ success: false, message: 'Prices must be non-negative' })
-  }
+  const { itemCode, description, uom, costPrice, sellPrice, quantity, minStock, categoryId, imageUrl, isPerishable, shelfLifeDays, cutOptions } = data
 
   const initialQty = Math.max(0, quantity || 0)
 
@@ -138,20 +165,16 @@ export async function updateStock(
 ) {
   const { branchId, userId } = request.user
   const { id } = request.params
-  const { itemCode, description, uom, costPrice, sellPrice, quantity, minStock, categoryId, imageUrl, isPerishable, shelfLifeDays, cutOptions } = request.body
+  const data = validate(updateStockSchema, request.body, reply)
+  if (!data) return
+
+  const { itemCode, description, uom, costPrice, sellPrice, quantity, minStock, categoryId, imageUrl, isPerishable, shelfLifeDays, cutOptions } = data
 
   const existing = await request.server.prisma.stockItem.findFirst({
     where: { id, branchId },
   })
   if (!existing) {
     return reply.status(404).send({ success: false, message: 'Item not found' })
-  }
-
-  if (costPrice !== undefined && costPrice < 0) {
-    return reply.status(400).send({ success: false, message: 'Cost price must be non-negative' })
-  }
-  if (sellPrice !== undefined && sellPrice < 0) {
-    return reply.status(400).send({ success: false, message: 'Sell price must be non-negative' })
   }
 
   const newQty = quantity !== undefined ? Math.max(0, quantity) : undefined

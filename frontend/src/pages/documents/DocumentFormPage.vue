@@ -269,10 +269,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDocumentStore } from '../../stores/documents'
 import { useToast } from '../../composables/useToast'
+import { useUnsavedChanges } from '../../composables/useUnsavedChanges'
 import api from '../../lib/api'
 import BaseInput from '../../components/base/BaseInput.vue'
 import BaseSelect from '../../components/base/BaseSelect.vue'
@@ -285,6 +286,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useDocumentStore()
 const toast = useToast()
+const { markDirty, markClean } = useUnsavedChanges()
 
 const isEdit = computed(() => !!route.params.id)
 const pageLoading = ref(false)
@@ -343,6 +345,8 @@ const form = reactive({
   discountAmount: 0,
   items: [] as FormItem[],
 })
+
+watch(form, () => markDirty(), { deep: true })
 
 function autoResize(e: Event) {
   const el = e.target as HTMLTextAreaElement
@@ -570,9 +574,11 @@ async function doSubmit() {
     } else {
       const doc = await store.createDocument(payload)
       toast.success(`${doc.documentNumber} created`)
+      markClean()
       router.push(`/app/documents/${doc.id}`)
       return
     }
+    markClean()
     router.push('/app/documents')
   } catch (e: any) {
     toast.error(e.response?.data?.message || 'Failed to save document')
