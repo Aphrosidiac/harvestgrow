@@ -2,20 +2,26 @@
   <div class="max-w-7xl mx-auto">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-white">Audit Logs</h1>
+        <h1 class="text-2xl font-bold text-stone-900">Audit Logs</h1>
         <p class="text-sm text-stone-500 mt-1">Admin-only activity trail</p>
       </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
       <BaseInput v-model="filters.search" placeholder="Search path / id" />
-      <BaseSelect v-model="filters.entity" :options="entityOptions" placeholder="All entities" />
-      <BaseSelect v-model="filters.action" :options="actionOptions" placeholder="All actions" />
+      <BaseSelect v-model="filters.entity" placeholder="All entities">
+        <option value="">All entities</option>
+        <option v-for="e in entityOptions" :key="e.value" :value="e.value">{{ e.label }}</option>
+      </BaseSelect>
+      <BaseSelect v-model="filters.action" placeholder="All actions">
+        <option value="">All actions</option>
+        <option v-for="a in actionOptions" :key="a.value" :value="a.value">{{ a.label }}</option>
+      </BaseSelect>
       <BaseInput v-model="filters.dateFrom" type="date" />
       <BaseInput v-model="filters.dateTo" type="date" />
     </div>
 
-    <BaseTable :columns="columns" :data="rows" :loading="loading" empty-text="No audit entries match these filters.">
+    <BaseTable :columns="columns" :data="rows" :loading="loading" empty-text="No audit entries match these filters." mobile-cards>
       <template #cell-createdAt="{ value }">
         <span class="text-stone-500 text-xs font-mono">{{ fmt(value) }}</span>
       </template>
@@ -92,7 +98,6 @@ const columns = [
 ]
 
 const entityOptions = [
-  { value: '', label: 'All entities' },
   { value: 'auth', label: 'Auth' },
   { value: 'assistant', label: 'Assistant' },
   { value: 'documents', label: 'Documents' },
@@ -105,7 +110,6 @@ const entityOptions = [
 ]
 
 const actionOptions = [
-  { value: '', label: 'All actions' },
   { value: 'REQUEST', label: 'Request' },
   { value: 'LOGIN', label: 'Login' },
   { value: 'LOGIN_FAILED', label: 'Login Failed' },

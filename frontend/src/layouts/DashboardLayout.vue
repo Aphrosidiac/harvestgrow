@@ -102,7 +102,7 @@
 import { ref, computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { Package, Users, BarChart3, LogOut, Menu, TrendingUp, ShoppingCart, PackageCheck, ChevronDown, FileSearch, MessageCircle, Send } from 'lucide-vue-next'
+import { Package, Users, BarChart3, LogOut, Menu, TrendingUp, ShoppingCart, PackageCheck, ChevronDown, FileSearch, MessageCircle, Send, ScrollText } from 'lucide-vue-next'
 import AssistantWidget from '../components/AssistantWidget.vue'
 
 const auth = useAuthStore()
@@ -150,6 +150,7 @@ const allNavItems = [
       { path: '/app/reports/truck-road', label: 'Truck Road' },
     ],
   },
+  { path: '/app/audit', label: 'Audit Log', icon: ScrollText, roles: ['ADMIN'] },
 ]
 
 const navItems = computed(() =>
@@ -210,6 +211,7 @@ const pageTitle = computed(() => {
   if (name?.startsWith('debtor')) return 'Debtors'
   if (name === 'payment-log') return 'Payment Log'
   if (name === 'profile') return 'Profile'
+  if (name === 'audit-list') return 'Audit Log'
   return 'HarvestGrow'
 })
 
