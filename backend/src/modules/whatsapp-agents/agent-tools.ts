@@ -55,6 +55,25 @@ export const EMPLOYEE_TOOLS: ToolDef[] = [
       required: ['items'],
     },
   },
+  {
+    name: 'check_customer_balance',
+    description: 'Check a customer\'s outstanding invoice balance and overdue amounts.',
+    input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Customer name, company name, or phone to search' } }, required: ['query'] },
+  },
+  {
+    name: 'adjust_stock',
+    description: 'Record a stock adjustment: wastage, return, or stock-in. Creates a stock history entry and updates quantity.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        itemCode: { type: 'string', description: 'Product item code' },
+        quantity: { type: 'number', description: 'Quantity to adjust (positive number)' },
+        type: { type: 'string', enum: ['IN', 'OUT'], description: 'IN for stock-in/return, OUT for wastage/removal' },
+        reason: { type: 'string', description: 'Reason for adjustment (e.g. "wastage - expired", "return from customer")' },
+      },
+      required: ['itemCode', 'quantity', 'type', 'reason'],
+    },
+  },
 ]
 
 export const CLIENT_TOOLS: ToolDef[] = [
@@ -77,6 +96,35 @@ export const CLIENT_TOOLS: ToolDef[] = [
     name: 'track_order',
     description: 'Find an order by phone number or order number.',
     input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Phone number or order number' } }, required: ['query'] },
+  },
+  {
+    name: 'place_order',
+    description: 'Place a delivery order for the customer. Requires items with quantities, delivery date and slot. Confirm items with the customer before calling this tool.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        contactName: { type: 'string', description: 'Customer name' },
+        contactPhone: { type: 'string', description: 'Customer phone number' },
+        deliveryDate: { type: 'string', description: 'Delivery date YYYY-MM-DD' },
+        deliverySlot: { type: 'string', enum: ['AM', 'PM'], description: 'AM or PM delivery slot' },
+        deliveryAddress: { type: 'string', description: 'Delivery address' },
+        items: { type: 'array', items: { type: 'object', properties: { product: { type: 'string' }, quantity: { type: 'number' }, unit: { type: 'string' } }, required: ['product', 'quantity'] } },
+      },
+      required: ['contactName', 'contactPhone', 'deliveryDate', 'deliverySlot', 'items'],
+    },
+  },
+  {
+    name: 'repeat_last_order',
+    description: 'Find and repeat the customer\'s last order. Looks up by phone number, creates a new order with the same items.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        phone: { type: 'string', description: 'Customer phone number' },
+        deliveryDate: { type: 'string', description: 'New delivery date YYYY-MM-DD (defaults to tomorrow)' },
+        deliverySlot: { type: 'string', enum: ['AM', 'PM'], description: 'AM or PM slot (defaults to same as last order)' },
+      },
+      required: ['phone'],
+    },
   },
 ]
 
@@ -250,6 +298,165 @@ export async function executeTool(prisma: PrismaClient, branchId: string, toolNa
 
         const summary = itemCreates.map((i) => `• ${i.description} — ${i.quantity} ${i.unit} @ RM ${i.unitPrice.toFixed(2)}`).join('\n')
         return `✅ Quotation created: ${order.salesOrderNumber}\n${input.customerName ? 'Customer: ' + input.customerName + '\n' : ''}Delivery: ${deliveryDate.toLocaleDateString('en-MY')}\n\n${summary}\n\nTotal: RM ${subtotal.toFixed(2)}`
+      }
+
+      case 'check_customer_balance': {
+        // Find customer by name/company/phone
+        const customer = await prisma.customer.findFirst({
+          where: { branchId, OR: [
+            { name: { contains: input.query, mode: 'insensitive' } },
+            { companyName: { contains: input.query, mode: 'insensitive' } },
+            { phone: { contains: input.query } },
+          ]},
+          select: { id: true, name: true, companyName: true, phone: true },
+        })
+        if (!customer) return 'No customer found for "' + input.query + '".'
+
+        // Get outstanding invoices
+        const invoices = await prisma.document.findMany({
+          where: { branchId, customerId: customer.id, documentType: 'INVOICE', status: { in: ['OUTSTANDING', 'PARTIAL'] } },
+          select: { documentNumber: true, totalAmount: true, paidAmount: true, dueDate: true, status: true },
+          orderBy: { dueDate: 'asc' },
+        })
+
+        if (!invoices.length) return `${customer.companyName || customer.name} has no outstanding invoices. ✅`
+
+        const today = new Date()
+        let totalOwed = 0
+        let totalOverdue = 0
+        const lines: string[] = []
+        for (const inv of invoices) {
+          const owed = Number(inv.totalAmount) - Number(inv.paidAmount)
+          totalOwed += owed
+          const isOverdue = inv.dueDate && new Date(inv.dueDate) < today
+          if (isOverdue) totalOverdue += owed
+          lines.push(`${inv.documentNumber}: RM ${owed.toFixed(2)}${isOverdue ? ' ⚠️ OVERDUE' : ''}`)
+        }
+
+        return `${customer.companyName || customer.name}\nTotal outstanding: RM ${totalOwed.toFixed(2)}${totalOverdue > 0 ? `\nOverdue: RM ${totalOverdue.toFixed(2)}` : ''}\n\n${lines.join('\n')}`
+      }
+
+      case 'adjust_stock': {
+        const item = await prisma.stockItem.findFirst({
+          where: { branchId, itemCode: { equals: input.itemCode, mode: 'insensitive' }, isActive: true },
+          select: { id: true, itemCode: true, description: true, quantity: true, uom: true },
+        })
+        if (!item) return 'Item code "' + input.itemCode + '" not found.'
+
+        const qty = Math.abs(Number(input.quantity))
+        if (qty <= 0) return 'Quantity must be positive.'
+
+        const newQty = input.type === 'IN' ? item.quantity + qty : item.quantity - qty
+        if (newQty < 0) return `Cannot remove ${qty} ${item.uom} — only ${item.quantity} in stock.`
+
+        await prisma.stockItem.update({ where: { id: item.id }, data: { quantity: newQty } })
+
+        // Find admin user for createdBy
+        const adjustAdmin = await prisma.user.findFirst({ where: { branchId, role: 'ADMIN' } })
+        await prisma.stockHistory.create({
+          data: {
+            branchId, stockItemId: item.id, type: input.type,
+            quantity: qty, previousQty: item.quantity, newQty,
+            reason: input.reason, createdById: adjustAdmin?.id || '',
+          },
+        })
+
+        return `✅ Stock adjusted: ${item.description} (${item.itemCode})\n${input.type === 'IN' ? '+' : '-'}${qty} ${item.uom} — ${input.reason}\nNew stock: ${newQty} ${item.uom}`
+      }
+
+      case 'place_order': {
+        if (!input.items?.length) return 'No items specified.'
+
+        const orderLines = []
+        for (const reqItem of input.items) {
+          const found = await prisma.stockItem.findFirst({
+            where: { branchId, isActive: true, OR: [
+              { description: { contains: reqItem.product, mode: 'insensitive' } },
+              { itemCode: { contains: reqItem.product, mode: 'insensitive' } },
+            ]},
+            select: { id: true, itemCode: true, description: true, uom: true, sellPrice: true, quantity: true },
+          })
+          if (!found) return `Product "${reqItem.product}" not found. Please check the product name.`
+          if (found.quantity < reqItem.quantity) return `Not enough stock for ${found.description}: only ${found.quantity} ${found.uom} available.`
+
+          const qty = Number(reqItem.quantity)
+          const price = Number(found.sellPrice)
+          orderLines.push({
+            stockItem: { connect: { id: found.id } },
+            itemName: found.description,
+            unit: reqItem.unit || found.uom,
+            quantity: qty,
+            unitPrice: price,
+            lineTotal: qty * price,
+          })
+        }
+
+        const subtotal = orderLines.reduce((s, l) => s + Number(l.lineTotal), 0)
+
+        // Generate order number
+        const orderToday = new Date()
+        const dateStr = orderToday.toISOString().slice(2, 10).replace(/-/g, '')
+        const count = await prisma.order.count({ where: { createdAt: { gte: new Date(orderToday.getFullYear(), orderToday.getMonth(), orderToday.getDate()) } } })
+        const orderNumber = `ORD-${dateStr}-${String(count + 1).padStart(3, '0')}`
+
+        const order = await prisma.order.create({
+          data: {
+            orderNumber,
+            contactName: input.contactName,
+            contactPhone: input.contactPhone,
+            deliveryAddress: input.deliveryAddress || '',
+            deliveryDate: new Date(input.deliveryDate),
+            deliverySlot: input.deliverySlot,
+            status: 'PENDING',
+            subtotal, deliveryFee: 0, total: subtotal,
+            lines: { create: orderLines },
+          },
+        })
+
+        const orderSummary = orderLines.map(l => `• ${l.itemName} — ${l.quantity} ${l.unit} @ RM ${Number(l.unitPrice).toFixed(2)}`).join('\n')
+        return `✅ Order placed! ${order.orderNumber}\nDelivery: ${new Date(input.deliveryDate).toLocaleDateString('en-MY')} (${input.deliverySlot})\n\n${orderSummary}\n\nTotal: RM ${subtotal.toFixed(2)}\n\nWe'll confirm your order shortly.`
+      }
+
+      case 'repeat_last_order': {
+        const cleanPhone = input.phone.replace(/[^0-9]/g, '')
+
+        // Try SalesOrder first, then Order
+        const lastSO = await prisma.salesOrder.findFirst({
+          where: { branchId, customerPhone: { contains: cleanPhone } },
+          include: { items: { select: { description: true, quantity: true, unit: true, unitPrice: true, stockItemId: true } } },
+          orderBy: { createdAt: 'desc' },
+        })
+
+        let lastOrder: any = lastSO
+        if (!lastOrder) {
+          lastOrder = await prisma.order.findFirst({
+            where: { contactPhone: { contains: cleanPhone } },
+            include: { lines: { select: { itemName: true, quantity: true, unit: true, unitPrice: true, stockItemId: true } } },
+            orderBy: { createdAt: 'desc' },
+          })
+        }
+
+        if (!lastOrder) return 'No previous orders found for this phone number.'
+
+        const repeatItems = lastOrder.items || lastOrder.lines || []
+        if (!repeatItems.length) return 'Last order had no items.'
+
+        const repeatTomorrow = new Date(); repeatTomorrow.setDate(repeatTomorrow.getDate() + 1); repeatTomorrow.setUTCHours(0, 0, 0, 0)
+        const deliveryDate = input.deliveryDate ? new Date(input.deliveryDate) : repeatTomorrow
+        const slot = input.deliverySlot || lastOrder.deliverySlot || 'AM'
+
+        // Show what would be re-ordered and ask for confirmation
+        const repeatSummary = repeatItems.map((i: any) => {
+          const name = i.description || i.itemName
+          const itemQty = Number(i.quantity)
+          const unit = i.unit
+          const price = Number(i.unitPrice)
+          return `• ${name} — ${itemQty} ${unit} @ RM ${price.toFixed(2)}`
+        }).join('\n')
+
+        const repeatTotal = repeatItems.reduce((s: number, i: any) => s + Number(i.quantity) * Number(i.unitPrice), 0)
+
+        return `Last order found (${lastOrder.salesOrderNumber || lastOrder.orderNumber}):\n\n${repeatSummary}\n\nTotal: RM ${repeatTotal.toFixed(2)}\nDelivery: ${deliveryDate.toLocaleDateString('en-MY')} (${slot})\n\nWould you like me to place this order?`
       }
 
       default:

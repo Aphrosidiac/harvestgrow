@@ -1,4 +1,4 @@
-import makeWASocket, { useMultiFileAuthState, DisconnectReason, WASocket } from 'baileys'
+import makeWASocket, { useMultiFileAuthState, DisconnectReason, WASocket, downloadMediaMessage } from 'baileys'
 import * as QRCode from 'qrcode'
 import { join } from 'path'
 import { existsSync, rmSync } from 'fs'
@@ -11,9 +11,11 @@ let connectionStatus: 'disconnected' | 'qr' | 'connecting' | 'connected' = 'disc
 let connectedPhone: string | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let reconnectAttempt = 0
-let messageHandler: ((phone: string, text: string, contactName: string | null) => Promise<string | null>) | null = null
+export type MediaAttachment = { type: 'image'; mimeType: string; base64: string; caption?: string } | { type: 'audio'; mimeType: string; base64: string }
 
-export function onMessage(handler: (phone: string, text: string, contactName: string | null) => Promise<string | null>) {
+let messageHandler: ((phone: string, text: string, contactName: string | null, media?: MediaAttachment) => Promise<string | null>) | null = null
+
+export function onMessage(handler: (phone: string, text: string, contactName: string | null, media?: MediaAttachment) => Promise<string | null>) {
   messageHandler = handler
 }
 
@@ -99,13 +101,40 @@ export async function initConnection() {
       for (const msg of m.messages || []) {
         if (msg.key.fromMe) continue
         if (msg.key.remoteJid?.endsWith('@g.us')) continue
-        const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text
-        if (!text) continue
+
         const phone = msg.key.remoteJid?.replace('@s.whatsapp.net', '') || ''
         if (!phone) continue
         const contactName = msg.pushName || null
+
+        let text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+        let media: MediaAttachment | undefined
+
+        if (msg.message?.imageMessage) {
+          try {
+            const buffer = await downloadMediaMessage(msg, 'buffer', {}) as Buffer
+            const mime = msg.message.imageMessage.mimetype || 'image/jpeg'
+            media = { type: 'image', mimeType: mime, base64: buffer.toString('base64'), caption: msg.message.imageMessage.caption || undefined }
+            text = msg.message.imageMessage.caption || '[Image sent]'
+          } catch (err) {
+            console.error('[WhatsApp] Failed to download image:', err)
+            text = '[Image could not be loaded]'
+          }
+        } else if (msg.message?.audioMessage) {
+          try {
+            const buffer = await downloadMediaMessage(msg, 'buffer', {}) as Buffer
+            const mime = msg.message.audioMessage.mimetype || 'audio/ogg; codecs=opus'
+            media = { type: 'audio', mimeType: mime, base64: buffer.toString('base64') }
+            text = '[Voice message]'
+          } catch (err) {
+            console.error('[WhatsApp] Failed to download audio:', err)
+            text = '[Voice message could not be loaded]'
+          }
+        }
+
+        if (!text && !media) continue
+
         try {
-          const reply = await messageHandler(phone, text, contactName)
+          const reply = await messageHandler(phone, text, contactName, media)
           if (reply && socket) {
             await socket.sendMessage(msg.key.remoteJid!, { text: reply })
           }
