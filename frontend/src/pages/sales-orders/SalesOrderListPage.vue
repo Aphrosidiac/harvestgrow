@@ -139,6 +139,9 @@
                 <button @click="handleCopy(order)" class="p-1.5 text-stone-500 hover:text-green-500 transition-colors" title="Copy">
                   <Copy class="w-4 h-4" />
                 </button>
+                <button v-if="['PENDING', 'CANCELLED'].includes(order.status)" @click="confirmDelete(order)" class="p-1.5 text-stone-500 hover:text-red-400 transition-colors" title="Delete">
+                  <Trash2 class="w-4 h-4" />
+                </button>
               </div>
             </td>
           </tr>

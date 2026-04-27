@@ -11,8 +11,6 @@ const COMPANY = {
   tin: '(TIN Number : C26132987010)',
 }
 
-const OLIVE: [number, number, number] = [134, 153, 64]
-
 type DocType = 'PICKING LIST' | 'DELIVERY ORDER'
 
 function generateOrderDocument(order: SalesOrder, type: DocType) {
