@@ -64,14 +64,22 @@ ssh ubuntu@43.134.29.203 "cd ~/harvestgrow && git pull && cd frontend && npm run
 
 ### Core ERP
 - **Dashboard** — revenue, orders, deliveries, stock turnover, daily sales, top-sellers, price changes, production bottlenecks, low-stock alerts
-- **Sales Orders** — CRUD with status tracking, delivery scheduling
+- **Sales Orders** — full order management matching production workflow:
+  - Create/edit with customer search, credit term/limit snapshot, country (MY/SG), branch, truck dropdown, basket/box counts, deliver remark
+  - Product table with image, product code, 2nd description, remark, UOM, unit price, FOC
+  - Edit Item Modal: product search with image preview, EST. BALANCE, UOM variant radio buttons with pricing, processing checkboxes (Cut/Peel/Sliced/Cube/Shredded/Rolling Cut/Stick), last ordered history, FOC
+  - Completed order read-only view page
+  - Picking List PDF and Delivery Order PDF generation (jsPDF + autoTable)
+  - Recalculate Prices from UOM variant pricing
+  - Status flow: Pending → Awaiting Shipment → Completed (Sync to SQL Accounting) / Cancelled
+  - Copy order, combine order (placeholder)
 - **Documents** — quotations, invoices, receipts, delivery orders; status workflow, payment tracking, document conversion
 - **Orders** — order lifecycle: PENDING → CONFIRMED → PICKING → CUTTING → PACKING → READY → OUT_FOR_DELIVERY → DELIVERED
 - **Production** — kanban board, packaging page, pack-sheet printing, stuck-order alerts, shop-display TV mode
 - **Delivery** — trips, stops, dispatch board, driver mobile app with signature/photo proof
 
 ### Inventory & Pricing
-- **Stock** — items, categories, history, daily-pricing bulk update, low-stock alerts, price history
+- **Stock** — items, categories, history, daily-pricing bulk update, low-stock alerts, price history, UOM variant pricing (per-product UOM codes with individual prices and KG weight)
 - **Product Clearance** — daily clearance lists for perishables
 - **Pricing Boards** — customer group pricing, pricing edit board
 
