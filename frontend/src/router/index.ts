@@ -53,6 +53,7 @@ const router = createRouter({
         { path: 'sales-order', name: 'sales-order-list', component: () => import('../pages/sales-orders/SalesOrderListPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'sales-order/new', name: 'sales-order-create', component: () => import('../pages/sales-orders/SalesOrderFormPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'sales-order/:id/edit', name: 'sales-order-edit', component: () => import('../pages/sales-orders/SalesOrderFormPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
+        { path: 'sales-order/:id/view', name: 'sales-order-view', component: () => import('../pages/sales-orders/SalesOrderViewPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'master/customer', name: 'master-customer', component: () => import('../pages/master-data/MasterCustomerPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'master/customer-group', name: 'master-customer-group', component: () => import('../pages/master-data/MasterCustomerGroupPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'master/product', name: 'master-product', component: () => import('../pages/master-data/MasterProductPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },

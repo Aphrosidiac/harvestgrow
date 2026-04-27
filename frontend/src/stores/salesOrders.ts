@@ -49,9 +49,28 @@ export const useSalesOrderStore = defineStore('salesOrders', () => {
     return data.data as SalesOrder
   }
 
+  async function fetchLastOrdered(stockItemId: string, customerId?: string) {
+    const params: Record<string, string> = { stockItemId }
+    if (customerId) params.customerId = customerId
+    const { data } = await api.get('/sales-orders/last-ordered', { params })
+    return data.data as Array<{
+      quantity: number; unit: string; unitPrice: number; total: number
+      salesOrder: { deliveryDate: string; salesOrderNumber: string }
+    }>
+  }
+
+  async function fetchStockUomVariants(stockItemId: string) {
+    const { data } = await api.get(`/stock/${stockItemId}/uom-variants`)
+    return data.data as Array<{
+      id: string; stockItemId: string; uomCode: string; price: number
+      isBase: boolean; weightKg?: number; isActive: boolean
+    }>
+  }
+
   return {
     salesOrders, total, loading,
     fetchSalesOrders, getSalesOrder, createSalesOrder,
     updateSalesOrder, deleteSalesOrder, updateStatus, copySalesOrder,
+    fetchLastOrdered, fetchStockUomVariants,
   }
 })

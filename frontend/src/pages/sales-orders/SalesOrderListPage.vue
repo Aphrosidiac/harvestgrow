@@ -127,17 +127,17 @@
             </td>
             <td class="px-4 py-3 text-right">
               <div class="flex items-center justify-end gap-1">
-                <button @click="$router.push(`/app/sales-order/${order.id}/edit`)" class="p-1.5 text-stone-500 hover:text-blue-400 transition-colors" title="Edit">
+                <button @click="navigateToOrder(order)" class="p-1.5 text-stone-500 hover:text-blue-400 transition-colors" title="Edit">
                   <Pencil class="w-4 h-4" />
                 </button>
-                <button @click="handlePrint(order)" class="p-1.5 text-stone-500 hover:text-stone-700 transition-colors" title="Print">
+                <button @click="handlePrintPickingList(order)" class="p-1.5 text-stone-500 hover:text-stone-700 transition-colors" title="Picking List">
                   <Printer class="w-4 h-4" />
+                </button>
+                <button @click="handlePrintDeliveryOrder(order)" class="p-1.5 text-stone-500 hover:text-purple-500 transition-colors" title="Delivery Order">
+                  <FileText class="w-4 h-4" />
                 </button>
                 <button @click="handleCopy(order)" class="p-1.5 text-stone-500 hover:text-green-500 transition-colors" title="Copy">
                   <Copy class="w-4 h-4" />
-                </button>
-                <button v-if="['PENDING', 'CANCELLED'].includes(order.status)" @click="confirmDelete(order)" class="p-1.5 text-stone-500 hover:text-red-400 transition-colors" title="Delete">
-                  <Trash2 class="w-4 h-4" />
                 </button>
               </div>
             </td>
@@ -168,11 +168,14 @@ import BaseButton from '../../components/base/BaseButton.vue'
 import BaseBadge from '../../components/base/BaseBadge.vue'
 import BaseModal from '../../components/base/BaseModal.vue'
 import BasePagination from '../../components/base/BasePagination.vue'
-import { Search, Plus, Pencil, Printer, Copy, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-vue-next'
+import { Search, Plus, Pencil, Printer, Copy, Trash2, FileText, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { generatePickingListPdf, generateDeliveryOrderPdf } from '../../lib/sales-order-pdf'
 import type { SalesOrder, SalesOrderStatus } from '../../types'
 
 const store = useSalesOrderStore()
 const toast = useToast()
+const router = useRouter()
 
 const orders = computed(() => store.salesOrders)
 const totalCount = computed(() => store.total)
@@ -348,8 +351,26 @@ async function handleCopy(order: SalesOrder) {
   }
 }
 
-function handlePrint(order: SalesOrder) {
-  toast.success(`Print ${order.salesOrderNumber} — coming soon`)
+function navigateToOrder(order: SalesOrder) {
+  if (['COMPLETED', 'AWAITING_SHIPMENT', 'RETURN_ORDER', 'COMBINED', 'CANCELLED'].includes(order.status)) {
+    router.push(`/app/sales-order/${order.id}/view`)
+  } else {
+    router.push(`/app/sales-order/${order.id}/edit`)
+  }
+}
+
+async function handlePrintPickingList(order: SalesOrder) {
+  try {
+    const full = await store.getSalesOrder(order.id)
+    generatePickingListPdf(full)
+  } catch { toast.error('Failed to generate picking list') }
+}
+
+async function handlePrintDeliveryOrder(order: SalesOrder) {
+  try {
+    const full = await store.getSalesOrder(order.id)
+    generateDeliveryOrderPdf(full)
+  } catch { toast.error('Failed to generate delivery order') }
 }
 
 watch([activeTab, debouncedSearch, dateFrom, dateTo, filterCountry, filterSlot, page, sortBy, sortOrder], () => fetchData())

@@ -31,7 +31,7 @@ import { X } from 'lucide-vue-next'
 const props = defineProps<{
   modelValue: boolean
   title: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'full'
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -40,6 +40,7 @@ const sizeClasses: Record<string, string> = {
   sm: 'max-w-md',
   md: 'max-w-lg',
   lg: 'max-w-2xl',
+  full: 'max-w-6xl',
 }
 
 function close() {

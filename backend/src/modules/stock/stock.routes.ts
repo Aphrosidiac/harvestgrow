@@ -3,6 +3,7 @@ import {
   listStock, getStock, createStock, updateStock, deleteStock, adjustStock,
   getStockHistory, getAllStockHistory,
   bulkPriceUpdate, getPriceHistory, getLowStockItems,
+  getStockUomVariants, upsertStockUomVariant, deleteStockUomVariant,
 } from './stock.controller.js'
 import { requireRole } from '../../middleware/authorize.js'
 
@@ -20,4 +21,7 @@ export default async function stockRoutes(fastify: FastifyInstance) {
   fastify.post('/:id/adjust', adjustStock)
   fastify.get('/:id/history', getStockHistory)
   fastify.get('/:id/price-history', getPriceHistory)
+  fastify.get('/:id/uom-variants', getStockUomVariants)
+  fastify.post('/:id/uom-variants', upsertStockUomVariant)
+  fastify.delete('/:id/uom-variants/:uomId', deleteStockUomVariant)
 }

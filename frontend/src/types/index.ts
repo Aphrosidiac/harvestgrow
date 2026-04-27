@@ -489,6 +489,12 @@ export interface SalesOrderItem {
   total: number
   sortOrder: number
   notes?: string
+  secondDescription?: string
+  remark?: string
+  imageUrl?: string
+  foc?: boolean
+  processing?: string
+  stockItem?: { id: string; imageUrl?: string; cutOptions?: string; quantity?: number }
 }
 
 export interface SalesOrder {
@@ -515,11 +521,27 @@ export interface SalesOrder {
   discountAmount: number
   totalAmount: number
   notes?: string
+  creditTerm?: string
+  creditLimit?: number
+  country?: string
+  basket?: number
+  box?: number
+  deliverRemark?: string
   createdBy?: { id: string; name: string }
   customer?: Customer
   items?: SalesOrderItem[]
   _count?: { items: number }
   createdAt: string
   updatedAt: string
+}
+
+export interface StockItemUom {
+  id: string
+  stockItemId: string
+  uomCode: string
+  price: number
+  isBase: boolean
+  weightKg?: number
+  isActive: boolean
 }
 

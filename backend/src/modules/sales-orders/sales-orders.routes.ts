@@ -7,12 +7,14 @@ import {
   deleteSalesOrder,
   updateSalesOrderStatus,
   copySalesOrder,
+  getLastOrdered,
 } from './sales-orders.controller.js'
 
 export default async function salesOrderRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', fastify.authenticate)
 
   fastify.get('/', listSalesOrders)
+  fastify.get('/last-ordered', getLastOrdered)
   fastify.get('/:id', getSalesOrder)
   fastify.post('/', createSalesOrder)
   fastify.put('/:id', updateSalesOrder)

@@ -15,32 +15,42 @@ const salesOrderItemSchema = z.object({
   discountPercent: z.coerce.number().min(0).max(100).optional().default(0),
   taxRate: z.coerce.number().min(0).optional().default(0),
   notes: z.string().optional(),
+  secondDescription: z.string().optional(),
+  remark: z.string().optional(),
+  imageUrl: z.string().optional(),
+  foc: z.boolean().optional().default(false),
+  processing: z.string().optional(),
 })
 
-const createSalesOrderSchema = z.object({
+const orderFieldsSchema = {
   customerId: z.string().optional(),
-  deliveryDate: z.string().min(1, 'Delivery date is required'),
-  deliverySlot: z.string().min(1, 'Delivery slot is required'),
   deliveryAddress: z.string().optional(),
   truck: z.string().optional(),
   poNumber: z.string().optional(),
   invoiceNumber: z.string().optional(),
   notes: z.string().optional(),
   discountAmount: z.coerce.number().min(0).optional().default(0),
+  creditTerm: z.string().optional(),
+  creditLimit: z.coerce.number().optional(),
+  country: z.string().optional(),
+  basket: z.coerce.number().int().min(0).optional().default(0),
+  box: z.coerce.number().int().min(0).optional().default(0),
+  deliverRemark: z.string().optional(),
+}
+
+const createSalesOrderSchema = z.object({
+  ...orderFieldsSchema,
+  deliveryDate: z.string().min(1, 'Delivery date is required'),
+  deliverySlot: z.string().min(1, 'Delivery slot is required'),
   items: z.array(salesOrderItemSchema).min(1, 'At least one item is required'),
 })
 
 const updateSalesOrderSchema = z.object({
-  customerId: z.string().optional(),
+  ...orderFieldsSchema,
   deliveryDate: z.string().optional(),
   deliverySlot: z.string().optional(),
-  deliveryAddress: z.string().optional(),
-  truck: z.string().optional(),
-  poNumber: z.string().optional(),
-  invoiceNumber: z.string().optional(),
-  notes: z.string().optional(),
-  discountAmount: z.coerce.number().min(0).optional().default(0),
   items: z.array(salesOrderItemSchema).optional(),
+  status: z.nativeEnum(SalesOrderStatus).optional(),
 })
 
 const VALID_TRANSITIONS: Record<SalesOrderStatus, SalesOrderStatus[]> = {
@@ -75,6 +85,12 @@ const selectFields = {
   discountAmount: true,
   totalAmount: true,
   notes: true,
+  creditTerm: true,
+  creditLimit: true,
+  country: true,
+  basket: true,
+  box: true,
+  deliverRemark: true,
   createdById: true,
   createdAt: true,
   updatedAt: true,
@@ -147,7 +163,10 @@ export async function getSalesOrder(
   const order = await request.server.prisma.salesOrder.findFirst({
     where: { id: request.params.id, branchId },
     include: {
-      items: { orderBy: { sortOrder: 'asc' } },
+      items: {
+        orderBy: { sortOrder: 'asc' },
+        include: { stockItem: { select: { id: true, imageUrl: true, cutOptions: true, quantity: true } } },
+      },
       customer: true,
       createdBy: { select: { id: true, name: true } },
     },
@@ -171,12 +190,13 @@ export async function createSalesOrder(
   const {
     customerId, deliveryDate, deliverySlot, deliveryAddress, truck,
     poNumber, invoiceNumber, notes, discountAmount, items,
+    creditTerm, creditLimit, country, basket, box, deliverRemark,
   } = data
 
   const result = await request.server.prisma.$transaction(async (tx) => {
     const salesOrderNumber = await generateSalesOrderNumber(tx as any, branchId)
 
-    let customerSnap: Record<string, string | null> = {}
+    let customerSnap: Record<string, any> = {}
     if (customerId) {
       const cust = await tx.customer.findFirst({ where: { id: customerId, branchId } })
       if (cust) {
@@ -188,6 +208,9 @@ export async function createSalesOrder(
           customerBranchCode: cust.branchCode,
           customerPhone: cust.phone,
           customerEmail: cust.email,
+          creditTerm: creditTerm || cust.creditTerms || null,
+          creditLimit: creditLimit ?? (cust.creditLimit ? Number(cust.creditLimit) : null),
+          country: country || cust.country || null,
         }
       }
     }
@@ -213,6 +236,11 @@ export async function createSalesOrder(
         total: totals.total,
         sortOrder: idx,
         notes: item.notes || null,
+        secondDescription: item.secondDescription || null,
+        remark: item.remark || null,
+        imageUrl: item.imageUrl || null,
+        foc: item.foc || false,
+        processing: item.processing || null,
       }
     })
 
@@ -235,6 +263,9 @@ export async function createSalesOrder(
         subtotal: orderTotals.subtotal,
         taxAmount: orderTotals.taxAmount,
         totalAmount: orderTotals.totalAmount,
+        basket: basket || 0,
+        box: box || 0,
+        deliverRemark: deliverRemark || null,
         createdById: userId,
         items: { create: calculatedItems },
       },
@@ -262,6 +293,7 @@ export async function updateSalesOrder(
   const {
     customerId, deliveryDate, deliverySlot, deliveryAddress, truck,
     poNumber, invoiceNumber, notes, discountAmount, items,
+    creditTerm, creditLimit, country, basket, box, deliverRemark, status,
   } = data
 
   const existing = await request.server.prisma.salesOrder.findFirst({
@@ -274,8 +306,15 @@ export async function updateSalesOrder(
     return reply.status(400).send({ success: false, message: 'Only PENDING orders can be edited' })
   }
 
+  if (status && status !== existing.status) {
+    const allowed = VALID_TRANSITIONS[existing.status] || []
+    if (!allowed.includes(status)) {
+      return reply.status(400).send({ success: false, message: `Cannot transition from ${existing.status} to ${status}` })
+    }
+  }
+
   const result = await request.server.prisma.$transaction(async (tx) => {
-    let customerSnap: Record<string, string | null> = {}
+    let customerSnap: Record<string, any> = {}
     if (customerId) {
       const cust = await tx.customer.findFirst({ where: { id: customerId, branchId } })
       if (cust) {
@@ -314,6 +353,11 @@ export async function updateSalesOrder(
         total: totals.total,
         sortOrder: idx,
         notes: item.notes || null,
+        secondDescription: item.secondDescription || null,
+        remark: item.remark || null,
+        imageUrl: item.imageUrl || null,
+        foc: item.foc || false,
+        processing: item.processing || null,
       }
     })
 
@@ -335,6 +379,13 @@ export async function updateSalesOrder(
         subtotal: orderTotals.subtotal,
         taxAmount: orderTotals.taxAmount,
         totalAmount: orderTotals.totalAmount,
+        creditTerm: creditTerm !== undefined ? (creditTerm || null) : undefined,
+        creditLimit: creditLimit !== undefined ? creditLimit : undefined,
+        country: country !== undefined ? (country || null) : undefined,
+        basket: basket ?? undefined,
+        box: box ?? undefined,
+        deliverRemark: deliverRemark !== undefined ? (deliverRemark || null) : undefined,
+        ...(status && { status }),
         items: { create: calculatedItems },
       },
       include: {
@@ -441,6 +492,12 @@ export async function copySalesOrder(
         subtotal: source.subtotal,
         taxAmount: source.taxAmount,
         totalAmount: source.totalAmount,
+        creditTerm: source.creditTerm,
+        creditLimit: source.creditLimit,
+        country: source.country,
+        basket: source.basket,
+        box: source.box,
+        deliverRemark: source.deliverRemark,
         createdById: userId,
         items: {
           create: source.items.map((item) => ({
@@ -457,6 +514,11 @@ export async function copySalesOrder(
             total: item.total,
             sortOrder: item.sortOrder,
             notes: item.notes,
+            secondDescription: item.secondDescription,
+            remark: item.remark,
+            imageUrl: item.imageUrl,
+            foc: item.foc,
+            processing: item.processing,
           })),
         },
       },
@@ -465,4 +527,41 @@ export async function copySalesOrder(
   })
 
   return reply.status(201).send({ success: true, data: result })
+}
+
+export async function getLastOrdered(
+  request: FastifyRequest<{ Querystring: Record<string, any> }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const { stockItemId, customerId, limit } = request.query as any
+
+  if (!stockItemId) {
+    return reply.status(400).send({ success: false, message: 'stockItemId is required' })
+  }
+
+  const take = Math.min(parseInt(limit || '5'), 20)
+
+  const items = await request.server.prisma.salesOrderItem.findMany({
+    where: {
+      stockItemId,
+      salesOrder: {
+        branchId,
+        ...(customerId && { customerId }),
+      },
+    },
+    select: {
+      quantity: true,
+      unit: true,
+      unitPrice: true,
+      total: true,
+      salesOrder: {
+        select: { deliveryDate: true, salesOrderNumber: true },
+      },
+    },
+    orderBy: { salesOrder: { deliveryDate: 'desc' } },
+    take,
+  })
+
+  return reply.send({ success: true, data: items })
 }

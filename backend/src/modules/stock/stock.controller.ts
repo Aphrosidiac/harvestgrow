@@ -524,3 +524,79 @@ export async function getAllStockHistory(
 
   return reply.send(paginatedResponse(data, total, page, limit))
 }
+
+// ─── UOM VARIANTS ──────────────────────────────────────────
+
+const uomVariantSchema = z.object({
+  uomCode: z.string().min(1),
+  price: z.coerce.number().min(0),
+  isBase: z.boolean().optional().default(false),
+  weightKg: z.coerce.number().optional(),
+  isActive: z.boolean().optional().default(true),
+})
+
+export async function getStockUomVariants(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const stock = await request.server.prisma.stockItem.findFirst({
+    where: { id: request.params.id, branchId },
+  })
+  if (!stock) return reply.status(404).send({ success: false, message: 'Stock item not found' })
+
+  const variants = await request.server.prisma.stockItemUom.findMany({
+    where: { stockItemId: request.params.id },
+    orderBy: { uomCode: 'asc' },
+  })
+
+  return reply.send({ success: true, data: variants })
+}
+
+export async function upsertStockUomVariant(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  const data = validate(uomVariantSchema, request.body, reply)
+  if (!data) return
+
+  const { branchId } = request.user
+  const stock = await request.server.prisma.stockItem.findFirst({
+    where: { id: request.params.id, branchId },
+  })
+  if (!stock) return reply.status(404).send({ success: false, message: 'Stock item not found' })
+
+  const variant = await request.server.prisma.stockItemUom.upsert({
+    where: { stockItemId_uomCode: { stockItemId: request.params.id, uomCode: data.uomCode } },
+    create: {
+      stockItemId: request.params.id,
+      uomCode: data.uomCode,
+      price: data.price,
+      isBase: data.isBase,
+      weightKg: data.weightKg ?? null,
+      isActive: data.isActive,
+    },
+    update: {
+      price: data.price,
+      isBase: data.isBase,
+      weightKg: data.weightKg ?? null,
+      isActive: data.isActive,
+    },
+  })
+
+  return reply.send({ success: true, data: variant })
+}
+
+export async function deleteStockUomVariant(
+  request: FastifyRequest<{ Params: { id: string; uomId: string } }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const stock = await request.server.prisma.stockItem.findFirst({
+    where: { id: request.params.id, branchId },
+  })
+  if (!stock) return reply.status(404).send({ success: false, message: 'Stock item not found' })
+
+  await request.server.prisma.stockItemUom.delete({ where: { id: request.params.uomId } })
+  return reply.send({ success: true, message: 'UOM variant deleted' })
+}

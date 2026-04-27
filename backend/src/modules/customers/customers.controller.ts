@@ -24,6 +24,7 @@ const createCustomerSchema = z.object({
   branchCode: z.string().optional(),
   country: z.string().optional(),
   creditTerms: z.string().optional(),
+  creditLimit: z.coerce.number().optional(),
   customerGroupId: z.string().optional(),
   quotationTemplate: z.string().optional(),
   arrBook: z.string().optional(),
@@ -41,6 +42,7 @@ const updateCustomerSchema = z.object({
   branchCode: z.string().nullable().optional(),
   country: z.string().nullable().optional(),
   creditTerms: z.string().nullable().optional(),
+  creditLimit: z.coerce.number().nullable().optional(),
   customerGroupId: z.string().nullable().optional(),
   quotationTemplate: z.string().nullable().optional(),
   arrBook: z.string().nullable().optional(),
@@ -168,7 +170,7 @@ export async function createCustomer(
   if (!data) return
 
   const { branchId } = request.user
-  const { name, phone, email, companyName, vehicles, companyCode, branchLocation, branchCode, country, creditTerms, customerGroupId, quotationTemplate, arrBook, address } = data
+  const { name, phone, email, companyName, vehicles, companyCode, branchLocation, branchCode, country, creditTerms, creditLimit, customerGroupId, quotationTemplate, arrBook, address } = data
 
   const customerName = name?.trim() || phone?.trim() || 'Walk-in'
 
@@ -185,6 +187,7 @@ export async function createCustomer(
       branchCode: branchCode?.trim() || null,
       country: country?.trim() || null,
       creditTerms: creditTerms?.trim() || null,
+      creditLimit: creditLimit ?? null,
       customerGroupId: customerGroupId || null,
       quotationTemplate: quotationTemplate?.trim() || null,
       arrBook: arrBook?.trim() || null,
@@ -217,7 +220,7 @@ export async function updateCustomer(
 
   const { branchId } = request.user
   const { id } = request.params
-  const { name, phone, email, companyName, address, companyCode, branchLocation, branchCode, country, creditTerms, customerGroupId, quotationTemplate, arrBook } = data
+  const { name, phone, email, companyName, address, companyCode, branchLocation, branchCode, country, creditTerms, creditLimit, customerGroupId, quotationTemplate, arrBook } = data
 
   const existing = await request.server.prisma.customer.findFirst({ where: { id, branchId } })
   if (!existing) {
@@ -237,6 +240,7 @@ export async function updateCustomer(
       ...(branchCode !== undefined && { branchCode: branchCode?.trim() || null }),
       ...(country !== undefined && { country: country?.trim() || null }),
       ...(creditTerms !== undefined && { creditTerms: creditTerms?.trim() || null }),
+      ...(creditLimit !== undefined && { creditLimit: creditLimit }),
       ...(customerGroupId !== undefined && { customerGroupId: customerGroupId || null }),
       ...(quotationTemplate !== undefined && { quotationTemplate: quotationTemplate?.trim() || null }),
       ...(arrBook !== undefined && { arrBook: arrBook?.trim() || null }),
