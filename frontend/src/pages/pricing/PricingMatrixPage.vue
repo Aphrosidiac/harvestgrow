@@ -199,7 +199,6 @@ function getPrice(row: MatrixRow, boardId: string): number {
   return row.prices[boardId] ?? 0
 }
 function isDirty(stockItemId: string, boardId: string) { return dirtyPrices.value.has(cellKey(stockItemId, boardId)) }
-const dirtyCount = computed(() => dirtyPrices.value.size)
 
 function onPriceInput(row: MatrixRow, boardId: string, e: Event) {
   const val = parseFloat((e.target as HTMLInputElement).value)
