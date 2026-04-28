@@ -98,7 +98,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, idx) in items" :key="row.stockItem.id" class="border-b border-stone-100" :class="showLowMargin && isLowMargin(row) ? 'bg-red-50' : ''">
+          <tr v-for="row in items" :key="row.stockItem.id" class="border-b border-stone-100" :class="showLowMargin && isLowMargin(row) ? 'bg-red-50' : ''">
             <td class="sticky left-0 z-10 px-3 py-2.5 text-stone-900 font-medium border-r-2 border-stone-300 bg-white" style="min-width:240px">
               <div class="truncate max-w-[220px]" :title="row.stockItem.description">{{ row.stockItem.description }}</div>
             </td>
