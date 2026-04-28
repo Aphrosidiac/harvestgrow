@@ -44,45 +44,45 @@
 
     <!-- Spreadsheet -->
     <div class="bg-white border border-stone-200 border-t-0 rounded-b-xl overflow-x-auto">
-      <table class="w-full text-xs" style="table-layout: fixed; min-width: 1400px">
+      <table class="w-full text-xs" style="table-layout: fixed; min-width: 1000px">
         <thead>
           <tr>
             <th class="w-10 px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">Seq</th>
             <th class="w-48 px-2 py-2 bg-stone-200 border-b border-stone-300 text-left font-medium">Product Name</th>
-            <th colspan="2" class="px-1 py-2 bg-green-600 text-white text-center font-medium border-b border-green-700">IN</th>
+            <th :colspan="filterTab === 'WORKER' ? 1 : 2" class="px-1 py-2 bg-green-600 text-white text-center font-medium border-b border-green-700">IN</th>
             <th class="w-20 px-1 py-2 bg-yellow-200 border-b border-yellow-300 text-center font-medium">Cost</th>
             <th class="w-24 px-1 py-2 bg-yellow-100 border-b border-yellow-200 text-center font-medium">Yesterday Balance</th>
-            <th colspan="2" class="px-1 py-2 bg-red-500 text-white text-center font-medium border-b border-red-600">OUT</th>
-            <th class="w-20 px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">RETURN IN</th>
+            <th v-if="filterTab !== 'PURCHASE'" colspan="2" class="px-1 py-2 bg-red-500 text-white text-center font-medium border-b border-red-600">OUT</th>
+            <th v-if="filterTab !== 'WORKER'" class="w-20 px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">RETURN IN</th>
             <th class="w-24 px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">Estimated Balance</th>
-            <th class="w-24 px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">Act Balance</th>
-            <th class="w-16 px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">Lost</th>
-            <th class="w-16 px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">Wastage</th>
-            <th colspan="2" class="px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">Supply Return</th>
+            <th v-if="filterTab !== 'WORKER'" class="w-24 px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">Act Balance</th>
+            <th v-if="filterTab !== 'WORKER'" class="w-16 px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">Lost</th>
+            <th v-if="filterTab !== 'WORKER'" class="w-16 px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">Wastage</th>
+            <th v-if="filterTab === 'ALL'" colspan="2" class="px-1 py-2 bg-stone-200 border-b border-stone-300 text-center font-medium">Supply Return</th>
           </tr>
           <tr class="text-[10px] text-stone-500">
             <th class="bg-stone-100 border-b border-stone-200"></th>
             <th class="bg-stone-100 border-b border-stone-200"></th>
-            <th class="w-28 bg-green-50 border-b border-green-100 text-center px-1 py-1">Supplier</th>
+            <th v-if="filterTab !== 'WORKER'" class="w-28 bg-green-50 border-b border-green-100 text-center px-1 py-1">Supplier</th>
             <th class="w-16 bg-green-50 border-b border-green-100 text-center px-1 py-1">Qty</th>
             <th class="bg-yellow-50 border-b border-yellow-100"></th>
             <th class="bg-yellow-50 border-b border-yellow-100"></th>
-            <th class="w-16 bg-red-50 border-b border-red-100 text-center px-1 py-1">Packing</th>
-            <th class="w-16 bg-red-50 border-b border-red-100 text-center px-1 py-1">Loose</th>
+            <th v-if="filterTab !== 'PURCHASE'" class="w-16 bg-red-50 border-b border-red-100 text-center px-1 py-1">Packing</th>
+            <th v-if="filterTab !== 'PURCHASE'" class="w-16 bg-red-50 border-b border-red-100 text-center px-1 py-1">Loose</th>
+            <th v-if="filterTab !== 'WORKER'" class="bg-stone-100 border-b border-stone-200"></th>
             <th class="bg-stone-100 border-b border-stone-200"></th>
-            <th class="bg-stone-100 border-b border-stone-200"></th>
-            <th class="bg-stone-100 border-b border-stone-200"></th>
-            <th class="bg-stone-100 border-b border-stone-200"></th>
-            <th class="bg-stone-100 border-b border-stone-200"></th>
-            <th class="w-28 bg-stone-100 border-b border-stone-200 text-center px-1 py-1">Supplier</th>
-            <th class="w-16 bg-stone-100 border-b border-stone-200 text-center px-1 py-1">Qty</th>
+            <th v-if="filterTab !== 'WORKER'" class="bg-stone-100 border-b border-stone-200"></th>
+            <th v-if="filterTab !== 'WORKER'" class="bg-stone-100 border-b border-stone-200"></th>
+            <th v-if="filterTab !== 'WORKER'" class="bg-stone-100 border-b border-stone-200"></th>
+            <th v-if="filterTab === 'ALL'" class="w-28 bg-stone-100 border-b border-stone-200 text-center px-1 py-1">Supplier</th>
+            <th v-if="filterTab === 'ALL'" class="w-16 bg-stone-100 border-b border-stone-200 text-center px-1 py-1">Qty</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(item, idx) in filteredItems" :key="item.stockItemId" class="border-b border-stone-100 hover:bg-stone-50" :class="isLowMargin(item) && showLowMargin ? 'bg-red-50' : ''">
             <td class="px-1 py-1.5 text-center text-stone-500">{{ idx + 1 }}</td>
             <td class="px-2 py-1.5 text-stone-900 font-medium truncate" :title="item.stockItem?.description">{{ item.stockItem?.description }}</td>
-            <td class="px-1 py-1.5">
+            <td v-if="filterTab !== 'WORKER'" class="px-1 py-1.5">
               <select v-model="item.inSupplierId" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-xs" :disabled="isClosed">
                 <option :value="null">-</option>
                 <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.shortForm || s.companyName }}</option>
@@ -91,23 +91,23 @@
             <td class="px-1 py-1.5"><input v-model.number="item.inQty" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" @input="recalculate(item)" /></td>
             <td class="px-1 py-1.5 bg-yellow-50"><input v-model.number="item.cost" type="number" step="0.01" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" /></td>
             <td class="px-1 py-1.5 bg-yellow-50/50 text-center text-stone-600">{{ Number(item.yesterdayBalance).toFixed(0) }}</td>
-            <td class="px-1 py-1.5"><input v-model.number="item.outPacking" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" @input="recalculate(item)" /></td>
-            <td class="px-1 py-1.5"><input v-model.number="item.outLoose" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" @input="recalculate(item)" /></td>
-            <td class="px-1 py-1.5"><input v-model.number="item.returnIn" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" @input="recalculate(item)" /></td>
+            <td v-if="filterTab !== 'PURCHASE'" class="px-1 py-1.5"><input v-model.number="item.outPacking" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" @input="recalculate(item)" /></td>
+            <td v-if="filterTab !== 'PURCHASE'" class="px-1 py-1.5"><input v-model.number="item.outLoose" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" @input="recalculate(item)" /></td>
+            <td v-if="filterTab !== 'WORKER'" class="px-1 py-1.5"><input v-model.number="item.returnIn" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" @input="recalculate(item)" /></td>
             <td class="px-1 py-1.5 text-center text-stone-700 font-medium">{{ Number(item.estimatedBalance).toFixed(0) }}</td>
-            <td class="px-1 py-1.5"><input v-model.number="item.actualBalance" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" @input="recalculate(item)" /></td>
-            <td class="px-1 py-1.5 text-center" :class="Number(item.lost) > 0 ? 'text-red-600 font-medium' : 'text-stone-500'">{{ Number(item.lost).toFixed(0) }}</td>
-            <td class="px-1 py-1.5"><input v-model.number="item.wastage" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" /></td>
-            <td class="px-1 py-1.5">
+            <td v-if="filterTab !== 'WORKER'" class="px-1 py-1.5"><input v-model.number="item.actualBalance" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" @input="recalculate(item)" /></td>
+            <td v-if="filterTab !== 'WORKER'" class="px-1 py-1.5 text-center" :class="Number(item.lost) > 0 ? 'text-red-600 font-medium' : 'text-stone-500'">{{ Number(item.lost).toFixed(0) }}</td>
+            <td v-if="filterTab !== 'WORKER'" class="px-1 py-1.5"><input v-model.number="item.wastage" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" /></td>
+            <td v-if="filterTab === 'ALL'" class="px-1 py-1.5">
               <select v-model="item.supplyReturnSupplierId" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-xs" :disabled="isClosed">
                 <option :value="null">-</option>
                 <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.shortForm || s.companyName }}</option>
               </select>
             </td>
-            <td class="px-1 py-1.5"><input v-model.number="item.supplyReturnQty" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" /></td>
+            <td v-if="filterTab === 'ALL'" class="px-1 py-1.5"><input v-model.number="item.supplyReturnQty" type="number" step="0.001" min="0" class="w-full bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" :disabled="isClosed" /></td>
           </tr>
           <tr v-if="!filteredItems.length">
-            <td colspan="15" class="text-center py-8 text-stone-400">No items.</td>
+            <td :colspan="filterTab === 'ALL' ? 15 : filterTab === 'WORKER' ? 7 : 11" class="text-center py-8 text-stone-400">No items.</td>
           </tr>
         </tbody>
       </table>
