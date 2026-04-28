@@ -150,7 +150,24 @@
     </div>
 
     <!-- Pagination -->
-    <BasePagination :page="page" :total="totalCount" :limit="limit" @update:page="page = $event" />
+    <div class="flex items-center justify-between mt-4">
+      <div class="flex items-center gap-2 text-sm text-stone-500">
+        <span>Rows per page:</span>
+        <div class="flex items-center border border-stone-300 rounded-lg overflow-hidden">
+          <button v-for="n in [10, 25, 50, 100]" :key="n" @click="limit = n; page = 1" :class="['px-3 py-1 text-sm transition-colors', limit === n ? 'bg-[rgb(134,153,64)] text-white font-medium' : 'bg-white text-stone-600 hover:bg-stone-100']">{{ n }}</button>
+        </div>
+      </div>
+      <div class="flex items-center gap-4 text-sm text-stone-500">
+        <span><strong class="text-stone-700">{{ totalCount }}</strong> total orders</span>
+        <div class="flex items-center gap-1">
+          <button :disabled="page <= 1" @click="page--" class="p-1 text-stone-500 hover:text-stone-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft class="w-5 h-5" /></button>
+          <span>Page</span>
+          <input :value="page" @change="onPageInput" type="number" min="1" :max="totalPages" class="w-10 text-center border border-stone-300 rounded px-1 py-0.5 text-sm text-stone-900" />
+          <span>/ {{ totalPages }}</span>
+          <button :disabled="page >= totalPages" @click="page++" class="p-1 text-stone-500 hover:text-stone-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight class="w-5 h-5" /></button>
+        </div>
+      </div>
+    </div>
 
     <!-- Delete Confirmation Modal -->
     <BaseModal v-model="showDeleteModal" title="Delete Sales Order" size="sm">
@@ -170,8 +187,7 @@ import { useToast } from '../../composables/useToast'
 import BaseButton from '../../components/base/BaseButton.vue'
 import BaseBadge from '../../components/base/BaseBadge.vue'
 import BaseModal from '../../components/base/BaseModal.vue'
-import BasePagination from '../../components/base/BasePagination.vue'
-import { Search, Plus, Pencil, Printer, Copy, Trash2, FileText, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-vue-next'
+import { Search, Plus, Pencil, Printer, Copy, Trash2, FileText, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { generatePickingListPdf, generateDeliveryOrderPdf } from '../../lib/sales-order-pdf'
 import type { SalesOrder, SalesOrderStatus } from '../../types'
@@ -191,9 +207,16 @@ const dateTo = ref('')
 const filterCountry = ref('')
 const filterSlot = ref('')
 const page = ref(1)
-const limit = ref(20)
+const limit = ref(10)
 const sortBy = ref('')
 const sortOrder = ref<'asc' | 'desc'>('desc')
+
+const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / limit.value)))
+
+function onPageInput(e: Event) {
+  const val = parseInt((e.target as HTMLInputElement).value)
+  if (val >= 1 && val <= totalPages.value) page.value = val
+}
 
 const selected = ref(new Set<string>())
 const showDeleteModal = ref(false)
