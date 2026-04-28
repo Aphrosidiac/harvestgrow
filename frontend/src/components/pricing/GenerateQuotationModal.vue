@@ -81,8 +81,8 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(item, idx) in previewItems" :key="item.stockItem.id" class="hover:bg-stone-50">
-                  <td class="border border-stone-200 px-2 py-1 text-center">{{ idx + 1 }}</td>
+                <tr v-for="(item, idx) in previewItems" :key="String(idx)" class="hover:bg-stone-50">
+                  <td class="border border-stone-200 px-2 py-1 text-center">{{ Number(idx) + 1 }}</td>
                   <td class="border border-stone-200 px-2 py-1">{{ item.stockItem.itemCode }}  {{ item.stockItem.description }}</td>
                   <td class="border border-stone-200 px-2 py-1 text-center">{{ item.stockItem.uom }}</td>
                   <td class="border border-stone-200 px-2 py-1 text-center">{{ item.stockItem.uom }}</td>
