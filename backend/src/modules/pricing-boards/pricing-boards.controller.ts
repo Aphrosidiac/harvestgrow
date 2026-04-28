@@ -316,7 +316,7 @@ export async function getMatrix(
 
   const boardWhere: Prisma.PricingBoardWhereInput = {
     branchId,
-    status: 'PROCEED',
+    status: { in: ['PROCEED', 'DRAFT'] },
     ...(termDays && { termDays: parseInt(termDays) }),
     ...(customerGroupId && { groups: { some: { customerGroupId } } }),
     ...(country && { groups: { some: { customerGroup: { country } } } }),
