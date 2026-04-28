@@ -16,8 +16,8 @@
 
     <!-- Actions -->
     <div class="flex items-center justify-end gap-3 mb-6">
-      <BaseButton variant="secondary" size="sm" disabled>Clearance Settings</BaseButton>
-      <BaseButton variant="primary" size="sm" @click="handleCreate" :loading="creating">
+      <BaseButton variant="secondary" size="sm" @click="showSettings = true">Clearance Settings</BaseButton>
+      <BaseButton variant="primary" size="sm" @click="showCreateModal = true">
         <Plus class="w-4 h-4 mr-1" /> Create Product Clearance List
       </BaseButton>
     </div>
@@ -25,8 +25,8 @@
     <!-- Table -->
     <div class="overflow-x-auto bg-white border border-stone-200 rounded-xl">
       <table class="w-full text-sm text-left">
-        <thead class="text-xs text-stone-500 uppercase bg-stone-200/50 border-b border-stone-200">
-          <tr>
+        <thead>
+          <tr class="bg-[rgb(134,153,64)] text-white">
             <th class="px-4 py-3 font-medium w-16">No.</th>
             <th class="px-4 py-3 font-medium">Date</th>
             <th class="px-4 py-3 font-medium text-center">Items</th>
@@ -46,26 +46,18 @@
             v-for="(list, idx) in lists"
             :key="list.id"
             class="transition-colors"
-            :class="isToday(list.date) ? 'bg-green-600/10' : 'hover:bg-stone-200/30'"
+            :class="isToday(list.date) ? 'bg-green-600/10' : 'hover:bg-stone-50'"
           >
             <td class="px-4 py-3 text-stone-500">{{ (page - 1) * limit + idx + 1 }}</td>
             <td class="px-4 py-3 text-stone-900 font-medium">{{ formatDate(list.date) }}</td>
             <td class="px-4 py-3 text-stone-700 text-center">{{ list._count?.items || 0 }}</td>
             <td class="px-4 py-3 text-center">
-              <BaseBadge :color="list.status === 'OPEN' ? 'green' : 'gray'">{{ list.status }}</BaseBadge>
+              <BaseBadge :color="list.status === 'OPEN' ? 'green' : 'gray'">{{ list.status === 'OPEN' ? 'Open' : 'Closed' }}</BaseBadge>
             </td>
             <td class="px-4 py-3 text-center">
-              <div class="flex items-center justify-center gap-1">
-                <button @click="viewList(list)" class="p-1.5 text-stone-500 hover:text-blue-400 transition-colors" title="Edit">
-                  <Pencil class="w-4 h-4" />
-                </button>
-                <button v-if="list.status === 'OPEN'" @click="handleClose(list)" class="p-1.5 text-stone-500 hover:text-green-600 transition-colors" title="Close">
-                  <CheckCircle class="w-4 h-4" />
-                </button>
-                <button v-if="list._count?.items === 0" @click="confirmDelete(list)" class="p-1.5 text-stone-500 hover:text-red-400 transition-colors" title="Delete">
-                  <Trash2 class="w-4 h-4" />
-                </button>
-              </div>
+              <button @click="router.push(`/app/product-clearance/${list.id}`)" class="p-1.5 text-stone-500 hover:text-blue-400 transition-colors" title="Edit">
+                <Pencil class="w-4 h-4" />
+              </button>
             </td>
           </tr>
         </tbody>
@@ -74,18 +66,35 @@
 
     <!-- Pagination -->
     <div class="flex items-center justify-between mt-4">
-      <div class="flex items-center gap-1">
-        <button
-          v-for="s in [10, 25, 50, 100]"
-          :key="s"
-          @click="limit = s; page = 1"
-          :class="['px-3 py-1.5 text-sm rounded-lg transition-colors', limit === s ? 'bg-green-600 text-stone-50 font-medium' : 'text-stone-600 hover:bg-stone-200']"
-        >
-          {{ s }}
-        </button>
+      <div class="flex items-center gap-2 text-sm text-stone-500">
+        <span>Rows per page:</span>
+        <div class="flex items-center border border-stone-300 rounded-lg overflow-hidden">
+          <button v-for="n in [10, 25, 50, 100]" :key="n" @click="limit = n; page = 1" :class="['px-3 py-1 text-sm transition-colors', limit === n ? 'bg-[rgb(134,153,64)] text-white font-medium' : 'bg-white text-stone-600 hover:bg-stone-100']">{{ n }}</button>
+        </div>
       </div>
-      <BasePagination :page="page" :total="total" :limit="limit" @update:page="page = $event" />
+      <div class="flex items-center gap-4 text-sm text-stone-500">
+        <span><strong class="text-stone-700">{{ total }}</strong> total</span>
+        <div class="flex items-center gap-1">
+          <button :disabled="page <= 1" @click="page--" class="p-1 text-stone-500 hover:text-stone-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft class="w-5 h-5" /></button>
+          <span>Page</span>
+          <input :value="page" @change="onPageInput" type="number" min="1" :max="totalPages" class="w-10 text-center border border-stone-300 rounded px-1 py-0.5 text-sm text-stone-900" />
+          <span>/ {{ totalPages }}</span>
+          <button :disabled="page >= totalPages" @click="page++" class="p-1 text-stone-500 hover:text-stone-700 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight class="w-5 h-5" /></button>
+        </div>
+      </div>
     </div>
+
+    <!-- Create Modal -->
+    <BaseModal v-model="showCreateModal" title="Create Clearance List" size="sm">
+      <div>
+        <label class="block text-sm text-stone-600 mb-1">Select Date</label>
+        <input v-model="createDate" type="date" class="w-full bg-stone-100 border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50" />
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showCreateModal = false">Cancel</BaseButton>
+        <BaseButton variant="primary" :loading="creating" @click="handleCreate">Add New</BaseButton>
+      </template>
+    </BaseModal>
 
     <!-- Delete Modal -->
     <BaseModal v-model="showDeleteModal" title="Delete Clearance List" size="sm">
@@ -96,54 +105,23 @@
       </template>
     </BaseModal>
 
-    <!-- Detail Modal -->
-    <BaseModal v-model="showDetailModal" :title="'Clearance List — ' + (detailList ? formatDate(detailList.date) : '')" size="lg">
-      <div v-if="loadingDetail" class="text-center text-stone-500 py-8">Loading items...</div>
-      <div v-else-if="!detailList?.items?.length" class="text-center text-stone-400 py-8">No items in this clearance list.</div>
-      <div v-else class="max-h-96 overflow-y-auto">
-        <table class="w-full text-sm text-left">
-          <thead class="text-xs text-stone-500 uppercase bg-stone-200/50 sticky top-0">
-            <tr>
-              <th class="px-3 py-2 font-medium">Code</th>
-              <th class="px-3 py-2 font-medium">Description</th>
-              <th class="px-3 py-2 font-medium">UOM</th>
-              <th class="px-3 py-2 font-medium text-right">Qty</th>
-              <th class="px-3 py-2 font-medium">Reason</th>
-              <th class="px-3 py-2 font-medium text-center">Cleared</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-stone-200">
-            <tr v-for="item in detailList.items" :key="item.id" class="hover:bg-stone-200/30">
-              <td class="px-3 py-2 font-mono text-xs text-stone-700">{{ item.stockItem?.itemCode }}</td>
-              <td class="px-3 py-2 text-stone-900">{{ item.stockItem?.description }}</td>
-              <td class="px-3 py-2 text-stone-600">{{ item.stockItem?.uom }}</td>
-              <td class="px-3 py-2 text-stone-700 text-right">{{ item.quantity }}</td>
-              <td class="px-3 py-2 text-stone-500 text-xs">{{ item.reason || '-' }}</td>
-              <td class="px-3 py-2 text-center">
-                <span v-if="item.cleared" class="text-green-600">&#10003;</span>
-                <span v-else class="text-stone-300">&#10005;</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <template #footer>
-        <BaseButton variant="secondary" @click="showDetailModal = false">Close</BaseButton>
-      </template>
-    </BaseModal>
+    <!-- Settings Modal -->
+    <ClearanceSettingsModal v-model="showSettings" @saved="fetchLists" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../../lib/api'
 import { useToast } from '../../composables/useToast'
 import BaseButton from '../../components/base/BaseButton.vue'
 import BaseBadge from '../../components/base/BaseBadge.vue'
 import BaseModal from '../../components/base/BaseModal.vue'
-import BasePagination from '../../components/base/BasePagination.vue'
-import { Search, Plus, Pencil, Trash2, CheckCircle } from 'lucide-vue-next'
+import ClearanceSettingsModal from '../../components/product-clearance/ClearanceSettingsModal.vue'
+import { Search, Plus, Pencil, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
+const router = useRouter()
 const toast = useToast()
 
 const lists = ref<any[]>([])
@@ -157,11 +135,18 @@ const page = ref(1)
 const limit = ref(10)
 const total = ref(0)
 
+const showCreateModal = ref(false)
+const createDate = ref('')
 const showDeleteModal = ref(false)
 const deleteTarget = ref<any>(null)
-const showDetailModal = ref(false)
-const detailList = ref<any>(null)
-const loadingDetail = ref(false)
+const showSettings = ref(false)
+
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)))
+
+function onPageInput(e: Event) {
+  const val = parseInt((e.target as HTMLInputElement).value)
+  if (val >= 1 && val <= totalPages.value) page.value = val
+}
 
 const todayStr = new Date().toISOString().slice(0, 10)
 
@@ -198,38 +183,17 @@ async function fetchLists() {
 }
 
 async function handleCreate() {
+  if (!createDate.value) { toast.error('Select a date'); return }
   creating.value = true
   try {
-    await api.post('/product-clearance', { autoPopulate: true })
-    toast.success('Clearance list created for today')
-    fetchLists()
+    const res = await api.post('/product-clearance', { date: createDate.value, autoPopulate: true })
+    toast.success('Clearance list created')
+    showCreateModal.value = false
+    router.push(`/app/product-clearance/${res.data.data.id}`)
   } catch (e: any) {
     toast.error(e.response?.data?.message || 'Failed to create')
   } finally { creating.value = false }
 }
-
-async function viewList(list: any) {
-  showDetailModal.value = true
-  loadingDetail.value = true
-  try {
-    const { data } = await api.get(`/product-clearance/${list.id}`)
-    detailList.value = data.data
-  } catch {
-    toast.error('Failed to load clearance list')
-  } finally { loadingDetail.value = false }
-}
-
-async function handleClose(list: any) {
-  try {
-    await api.patch(`/product-clearance/${list.id}/status`, { status: 'CLOSED' })
-    toast.success('Clearance list closed')
-    fetchLists()
-  } catch (e: any) {
-    toast.error(e.response?.data?.message || 'Failed to close')
-  }
-}
-
-function confirmDelete(list: any) { deleteTarget.value = list; showDeleteModal.value = true }
 
 async function handleDelete() {
   if (!deleteTarget.value) return

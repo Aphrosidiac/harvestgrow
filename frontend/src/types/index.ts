@@ -545,3 +545,47 @@ export interface StockItemUom {
   isActive: boolean
 }
 
+// ─── PRODUCT CLEARANCE ───────────────────────────────────
+export interface ClearanceList {
+  id: string
+  branchId: string
+  date: string
+  status: 'OPEN' | 'CLOSED'
+  createdBy?: { id: string; name: string }
+  items?: ClearanceItem[]
+  _count?: { items: number }
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ClearanceItem {
+  id?: string
+  clearanceListId?: string
+  stockItemId: string
+  sortOrder: number
+  inSupplierId: string | null
+  inQty: number
+  cost: number
+  yesterdayBalance: number
+  outPacking: number
+  outLoose: number
+  returnIn: number
+  estimatedBalance: number
+  actualBalance: number
+  lost: number
+  wastage: number
+  supplyReturnSupplierId: string | null
+  supplyReturnQty: number
+  stockItem?: { id: string; itemCode: string; description: string; imageUrl?: string; uom: string; sellPrice: number; costPrice: number; quantity: number }
+  inSupplier?: { id: string; companyName: string; shortForm?: string }
+  supplyReturnSupplier?: { id: string; companyName: string; shortForm?: string }
+}
+
+export interface ClearanceSettingItem {
+  id: string
+  itemCode: string
+  description: string
+  imageUrl: string | null
+  showInClearance: boolean
+}
+

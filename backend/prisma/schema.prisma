@@ -133,6 +133,7 @@ model StockItem {
   shelfLifeDays   Int?
   cutOptions      String?
   isActive        Boolean  @default(true)
+  showInClearance Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -487,8 +488,10 @@ model Supplier {
 
   branch           Branch             @relation(fields: [branchId], references: [id])
   supplierCategory SupplierCategory?  @relation(fields: [supplierCategoryId], references: [id])
-  purchaseInvoices PurchaseInvoice[]
-  payments         SupplierPayment[]
+  purchaseInvoices     PurchaseInvoice[]
+  payments             SupplierPayment[]
+  clearanceInItems     ProductClearanceItem[] @relation("ClearanceInSupplier")
+  clearanceReturnItems ProductClearanceItem[] @relation("ClearanceReturnSupplier")
 
   @@index([branchId])
   @@map("suppliers")
@@ -941,15 +944,28 @@ model ProductClearanceList {
 }
 
 model ProductClearanceItem {
-  id               String  @id @default(cuid())
-  clearanceListId  String
-  stockItemId      String
-  quantity         Int     @default(0)
-  reason           String?
-  cleared          Boolean @default(false)
+  id                     String   @id @default(cuid())
+  clearanceListId        String
+  stockItemId            String
+  sortOrder              Int      @default(0)
+  inSupplierId           String?
+  inQty                  Decimal  @db.Decimal(10, 3) @default(0)
+  cost                   Decimal  @db.Decimal(12, 2) @default(0)
+  yesterdayBalance       Decimal  @db.Decimal(10, 3) @default(0)
+  outPacking             Decimal  @db.Decimal(10, 3) @default(0)
+  outLoose               Decimal  @db.Decimal(10, 3) @default(0)
+  returnIn               Decimal  @db.Decimal(10, 3) @default(0)
+  estimatedBalance       Decimal  @db.Decimal(10, 3) @default(0)
+  actualBalance          Decimal  @db.Decimal(10, 3) @default(0)
+  lost                   Decimal  @db.Decimal(10, 3) @default(0)
+  wastage                Decimal  @db.Decimal(10, 3) @default(0)
+  supplyReturnSupplierId String?
+  supplyReturnQty        Decimal  @db.Decimal(10, 3) @default(0)
 
-  clearanceList ProductClearanceList @relation(fields: [clearanceListId], references: [id], onDelete: Cascade)
-  stockItem     StockItem            @relation(fields: [stockItemId], references: [id])
+  clearanceList        ProductClearanceList @relation(fields: [clearanceListId], references: [id], onDelete: Cascade)
+  stockItem            StockItem            @relation(fields: [stockItemId], references: [id])
+  inSupplier           Supplier?            @relation("ClearanceInSupplier", fields: [inSupplierId], references: [id])
+  supplyReturnSupplier Supplier?            @relation("ClearanceReturnSupplier", fields: [supplyReturnSupplierId], references: [id])
 
   @@unique([clearanceListId, stockItemId])
   @@index([clearanceListId])
