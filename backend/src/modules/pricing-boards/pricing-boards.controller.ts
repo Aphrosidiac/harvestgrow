@@ -1,5 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
+import { z } from 'zod'
 import { getPaginationParams, paginatedResponse } from '../../utils/pagination.js'
+import { validate } from '../../utils/validation.js'
 import { Prisma, PricingBoardStatus } from '@prisma/client'
 
 export async function listBoards(
@@ -300,4 +302,233 @@ export async function getDailySnapshot(
   })
 
   return reply.send({ success: true, data: entries })
+}
+
+// ─── MATRIX ────────────────────────────────────────────────
+
+export async function getMatrix(
+  request: FastifyRequest<{ Querystring: Record<string, any> }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const { page, limit, skip } = getPaginationParams(request.query)
+  const { search, termDays, country, productCode, customerGroupId } = request.query as any
+
+  const boardWhere: Prisma.PricingBoardWhereInput = {
+    branchId,
+    status: 'PROCEED',
+    ...(termDays && { termDays: parseInt(termDays) }),
+    ...(customerGroupId && { groups: { some: { customerGroupId } } }),
+    ...(country && { groups: { some: { customerGroup: { country } } } }),
+  }
+
+  const boards = await request.server.prisma.pricingBoard.findMany({
+    where: boardWhere,
+    select: { id: true, name: true, termDays: true, status: true },
+    orderBy: [{ termDays: 'asc' }, { name: 'asc' }],
+  })
+
+  const itemWhere: Prisma.StockItemWhereInput = {
+    branchId,
+    isActive: true,
+    ...(search && {
+      OR: [
+        { itemCode: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ],
+    }),
+    ...(productCode && { itemCode: { startsWith: productCode, mode: 'insensitive' } }),
+  }
+
+  const [items, total] = await Promise.all([
+    request.server.prisma.stockItem.findMany({
+      where: itemWhere,
+      select: { id: true, itemCode: true, description: true, uom: true, costPrice: true, sellPrice: true },
+      orderBy: { itemCode: 'asc' },
+      skip,
+      take: limit,
+    }),
+    request.server.prisma.stockItem.count({ where: itemWhere }),
+  ])
+
+  const boardIds = boards.map(b => b.id)
+  const itemIds = items.map(i => i.id)
+
+  const pricingItems = boardIds.length && itemIds.length
+    ? await request.server.prisma.pricingBoardItem.findMany({
+        where: { pricingBoardId: { in: boardIds }, stockItemId: { in: itemIds } },
+        select: { pricingBoardId: true, stockItemId: true, price: true },
+      })
+    : []
+
+  const priceMap = new Map<string, Record<string, number>>()
+  for (const pi of pricingItems) {
+    if (!priceMap.has(pi.stockItemId)) priceMap.set(pi.stockItemId, {})
+    priceMap.get(pi.stockItemId)![pi.pricingBoardId] = Number(pi.price)
+  }
+
+  const data = items.map(item => ({
+    stockItem: item,
+    prices: priceMap.get(item.id) || {},
+  }))
+
+  return reply.send({ boards, ...paginatedResponse(data, total, page, limit) })
+}
+
+const matrixSaveSchema = z.object({
+  changes: z.array(z.object({
+    stockItemId: z.string().min(1),
+    boardId: z.string().min(1),
+    price: z.coerce.number().nullable(),
+  })),
+})
+
+export async function saveMatrix(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const data = validate(matrixSaveSchema, request.body, reply)
+  if (!data) return
+
+  const { branchId, userId } = request.user
+
+  await request.server.prisma.$transaction(async (tx) => {
+    for (const change of data.changes) {
+      const existing = await tx.pricingBoardItem.findUnique({
+        where: { pricingBoardId_stockItemId: { pricingBoardId: change.boardId, stockItemId: change.stockItemId } },
+      })
+      const oldPrice = existing ? Number(existing.price) : null
+
+      if (change.price === null || change.price === 0) {
+        if (existing) await tx.pricingBoardItem.delete({ where: { id: existing.id } })
+      } else {
+        await tx.pricingBoardItem.upsert({
+          where: { pricingBoardId_stockItemId: { pricingBoardId: change.boardId, stockItemId: change.stockItemId } },
+          create: { pricingBoardId: change.boardId, stockItemId: change.stockItemId, price: change.price },
+          update: { price: change.price },
+        })
+      }
+
+      await tx.auditLog.create({
+        data: {
+          branchId,
+          userId,
+          action: 'UPDATE',
+          entity: 'pricing-board',
+          entityId: change.boardId,
+          changes: { stockItemId: change.stockItemId, oldPrice, newPrice: change.price },
+        },
+      })
+    }
+  })
+
+  return reply.send({ success: true, message: `${data.changes.length} price(s) updated` })
+}
+
+const batchCopySchema = z.object({
+  sourceBoardId: z.string().min(1),
+  targetBoardId: z.string().min(1),
+  uomFilters: z.array(z.string()).optional(),
+  adjustments: z.record(z.string(), z.coerce.number()).optional(),
+})
+
+export async function batchCopy(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  const data = validate(batchCopySchema, request.body, reply)
+  if (!data) return
+
+  const { branchId, userId } = request.user
+
+  const sourceItems = await request.server.prisma.pricingBoardItem.findMany({
+    where: { pricingBoardId: data.sourceBoardId },
+    include: { stockItem: { select: { id: true, uom: true } } },
+  })
+
+  let filtered = sourceItems
+  if (data.uomFilters?.length) {
+    filtered = sourceItems.filter(si => {
+      const uom = si.stockItem.uom.toUpperCase()
+      return data.uomFilters!.some(f => uom.includes(f.toUpperCase()))
+    })
+  }
+
+  let count = 0
+  await request.server.prisma.$transaction(async (tx) => {
+    for (const item of filtered) {
+      const uom = item.stockItem.uom.toUpperCase()
+      const adj = data.adjustments?.[uom] ?? data.adjustments?.['KG'] ?? 0
+      const newPrice = Number(item.price) + adj
+
+      await tx.pricingBoardItem.upsert({
+        where: { pricingBoardId_stockItemId: { pricingBoardId: data.targetBoardId, stockItemId: item.stockItemId } },
+        create: { pricingBoardId: data.targetBoardId, stockItemId: item.stockItemId, price: Math.max(0, newPrice) },
+        update: { price: Math.max(0, newPrice) },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          branchId, userId,
+          action: 'UPDATE',
+          entity: 'pricing-board',
+          entityId: data.targetBoardId,
+          changes: { operation: 'batch-copy', sourceBoardId: data.sourceBoardId, stockItemId: item.stockItemId, price: newPrice },
+        },
+      })
+      count++
+    }
+  })
+
+  return reply.send({ success: true, message: `${count} price(s) copied` })
+}
+
+export async function getAuditTrail(
+  request: FastifyRequest<{ Querystring: Record<string, any> }>,
+  reply: FastifyReply
+) {
+  const { branchId } = request.user
+  const { date, search } = request.query as any
+  const { page, limit, skip } = getPaginationParams(request.query)
+
+  const targetDate = date ? new Date(date) : new Date()
+  const startOfDay = new Date(targetDate)
+  startOfDay.setUTCHours(0, 0, 0, 0)
+  const endOfDay = new Date(targetDate)
+  endOfDay.setUTCHours(23, 59, 59, 999)
+
+  const where: Prisma.AuditLogWhereInput = {
+    branchId,
+    entity: 'pricing-board',
+    createdAt: { gte: startOfDay, lte: endOfDay },
+    ...(search && {
+      OR: [
+        { changes: { path: [], string_contains: search } },
+        { userEmail: { contains: search, mode: 'insensitive' } },
+      ],
+    }),
+  }
+
+  const [data, total] = await Promise.all([
+    request.server.prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    request.server.prisma.auditLog.count({ where }),
+  ])
+
+  const userIds = [...new Set(data.filter(d => d.userId).map(d => d.userId!))]
+  const users = userIds.length
+    ? await request.server.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } })
+    : []
+  const userMap = new Map(users.map(u => [u.id, u.name]))
+
+  const enriched = data.map(entry => ({
+    ...entry,
+    userName: entry.userId ? userMap.get(entry.userId) || 'Unknown' : 'System',
+  }))
+
+  return reply.send(paginatedResponse(enriched, total, page, limit))
 }

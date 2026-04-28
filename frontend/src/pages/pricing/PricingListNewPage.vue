@@ -23,7 +23,7 @@
             <td class="px-4 py-3 text-stone-900 font-medium">{{ formatDate(s.date) }}</td>
             <td class="px-4 py-3 text-stone-700">{{ s.items.toLocaleString() }}</td>
             <td class="px-4 py-3 text-right">
-              <button @click="$router.push('/app/stock/daily-pricing')" class="p-1.5 text-stone-500 hover:text-blue-400 transition-colors" title="Edit">
+              <button @click="$router.push('/app/pricing/matrix')" class="p-1.5 text-stone-500 hover:text-blue-400 transition-colors" title="Edit">
                 <Pencil class="w-4 h-4" />
               </button>
             </td>

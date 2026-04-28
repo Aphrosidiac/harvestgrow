@@ -67,6 +67,7 @@ const router = createRouter({
         { path: 'product-clearance', name: 'product-clearance', component: () => import('../pages/product-clearance/ProductClearancePage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'product-clearance/:id', name: 'product-clearance-edit', component: () => import('../pages/product-clearance/ProductClearanceEditPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'pricing/new', name: 'pricing-new', component: () => import('../pages/pricing/PricingListNewPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
+        { path: 'pricing/matrix', name: 'pricing-matrix', component: () => import('../pages/pricing/PricingMatrixPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'pricing/edit-board', name: 'pricing-edit-board', component: () => import('../pages/pricing/PricingEditBoardPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'reports/truck', name: 'report-truck', component: () => import('../pages/reports/ReportTruckPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'reports/export-import', name: 'report-export-import', component: () => import('../pages/reports/ReportExportImportPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
