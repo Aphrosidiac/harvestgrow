@@ -239,7 +239,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSalesOrderStore } from '../../stores/salesOrders'
 import { useToast } from '../../composables/useToast'
@@ -259,7 +259,7 @@ const saving = ref(false)
 
 const isEdit = computed(() => !!route.params.id)
 
-export interface FormItem {
+interface FormItem {
   stockItemId?: string
   itemCode?: string
   description: string
@@ -406,17 +406,19 @@ const grandTotal = computed(() => {
 
 async function recalculatePrices() {
   let updated = 0
-  for (const item of form.items) {
-    if (!item.stockItemId) continue
-    try {
-      const variants = await store.fetchStockUomVariants(item.stockItemId)
-      const match = variants.find(v => v.uomCode === item.unit)
-      if (match && Number(match.price) !== item.unitPrice) {
-        item.unitPrice = Number(match.price)
-        updated++
-      }
-    } catch { /* ignore */ }
-  }
+  const itemsWithStock = form.items.filter(i => i.stockItemId)
+  const results = await Promise.allSettled(
+    itemsWithStock.map(item => store.fetchStockUomVariants(item.stockItemId!))
+  )
+  results.forEach((result, idx) => {
+    if (result.status !== 'fulfilled') return
+    const item = itemsWithStock[idx]
+    const match = result.value.find(v => v.uomCode === item.unit)
+    if (match && Number(match.price) !== item.unitPrice) {
+      item.unitPrice = Number(match.price)
+      updated++
+    }
+  })
   toast.success(`${updated} price(s) updated`)
 }
 
@@ -554,6 +556,5 @@ function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'F4') { e.preventDefault(); router.push('/app/sales-order/new') }
 }
 onMounted(() => window.addEventListener('keydown', handleKeydown))
-import { onUnmounted } from 'vue'
 onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 </script>

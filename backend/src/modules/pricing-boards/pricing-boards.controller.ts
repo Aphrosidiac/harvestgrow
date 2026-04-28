@@ -395,14 +395,22 @@ export async function saveMatrix(
   const { branchId, userId } = request.user
 
   await request.server.prisma.$transaction(async (tx) => {
+    const keys = data.changes.map(c => ({ pricingBoardId: c.boardId, stockItemId: c.stockItemId }))
+    const existing = await tx.pricingBoardItem.findMany({
+      where: { OR: keys.map(k => ({ pricingBoardId: k.pricingBoardId, stockItemId: k.stockItemId })) },
+    })
+    const existingMap = new Map(existing.map(e => [`${e.pricingBoardId}:${e.stockItemId}`, e]))
+
+    const auditEntries: any[] = []
+    const toDelete: string[] = []
+
     for (const change of data.changes) {
-      const existing = await tx.pricingBoardItem.findUnique({
-        where: { pricingBoardId_stockItemId: { pricingBoardId: change.boardId, stockItemId: change.stockItemId } },
-      })
-      const oldPrice = existing ? Number(existing.price) : null
+      const key = `${change.boardId}:${change.stockItemId}`
+      const prev = existingMap.get(key)
+      const oldPrice = prev ? Number(prev.price) : null
 
       if (change.price === null || change.price === 0) {
-        if (existing) await tx.pricingBoardItem.delete({ where: { id: existing.id } })
+        if (prev) toDelete.push(prev.id)
       } else {
         await tx.pricingBoardItem.upsert({
           where: { pricingBoardId_stockItemId: { pricingBoardId: change.boardId, stockItemId: change.stockItemId } },
@@ -411,17 +419,15 @@ export async function saveMatrix(
         })
       }
 
-      await tx.auditLog.create({
-        data: {
-          branchId,
-          userId,
-          action: 'UPDATE',
-          entity: 'pricing-board',
-          entityId: change.boardId,
-          changes: { stockItemId: change.stockItemId, oldPrice, newPrice: change.price },
-        },
+      auditEntries.push({
+        branchId, userId, action: 'UPDATE', entity: 'pricing-board',
+        entityId: change.boardId,
+        changes: { stockItemId: change.stockItemId, oldPrice, newPrice: change.price },
       })
     }
+
+    if (toDelete.length) await tx.pricingBoardItem.deleteMany({ where: { id: { in: toDelete } } })
+    if (auditEntries.length) await tx.auditLog.createMany({ data: auditEntries })
   })
 
   return reply.send({ success: true, message: `${data.changes.length} price(s) updated` })
@@ -456,31 +462,28 @@ export async function batchCopy(
     })
   }
 
-  let count = 0
+  const auditEntries: any[] = []
   await request.server.prisma.$transaction(async (tx) => {
     for (const item of filtered) {
       const uom = item.stockItem.uom.toUpperCase()
-      const adj = data.adjustments?.[uom] ?? data.adjustments?.['KG'] ?? 0
-      const newPrice = Number(item.price) + adj
+      const adj = data.adjustments?.[uom] ?? data.adjustments?.['Others'] ?? 0
+      const newPrice = Math.max(0, Number(item.price) + adj)
 
       await tx.pricingBoardItem.upsert({
         where: { pricingBoardId_stockItemId: { pricingBoardId: data.targetBoardId, stockItemId: item.stockItemId } },
-        create: { pricingBoardId: data.targetBoardId, stockItemId: item.stockItemId, price: Math.max(0, newPrice) },
-        update: { price: Math.max(0, newPrice) },
+        create: { pricingBoardId: data.targetBoardId, stockItemId: item.stockItemId, price: newPrice },
+        update: { price: newPrice },
       })
 
-      await tx.auditLog.create({
-        data: {
-          branchId, userId,
-          action: 'UPDATE',
-          entity: 'pricing-board',
-          entityId: data.targetBoardId,
-          changes: { operation: 'batch-copy', sourceBoardId: data.sourceBoardId, stockItemId: item.stockItemId, price: newPrice },
-        },
+      auditEntries.push({
+        branchId, userId, action: 'UPDATE', entity: 'pricing-board',
+        entityId: data.targetBoardId,
+        changes: { operation: 'batch-copy', sourceBoardId: data.sourceBoardId, stockItemId: item.stockItemId, price: newPrice },
       })
-      count++
     }
+    if (auditEntries.length) await tx.auditLog.createMany({ data: auditEntries })
   })
+  const count = auditEntries.length
 
   return reply.send({ success: true, message: `${count} price(s) copied` })
 }

@@ -597,6 +597,11 @@ export async function deleteStockUomVariant(
   })
   if (!stock) return reply.status(404).send({ success: false, message: 'Stock item not found' })
 
-  await request.server.prisma.stockItemUom.delete({ where: { id: request.params.uomId } })
+  const variant = await request.server.prisma.stockItemUom.findFirst({
+    where: { id: request.params.uomId, stockItemId: request.params.id },
+  })
+  if (!variant) return reply.status(404).send({ success: false, message: 'UOM variant not found' })
+
+  await request.server.prisma.stockItemUom.delete({ where: { id: variant.id } })
   return reply.send({ success: true, message: 'UOM variant deleted' })
 }
