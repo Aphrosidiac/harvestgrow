@@ -38,8 +38,9 @@
         </div>
       </div>
 
-      <!-- Row 2: Customer Name, Country -->
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <!-- 2-column layout: Left (~55%) / Right (~45%) -->
+      <div class="grid grid-cols-2 gap-x-6 gap-y-4 mb-6">
+        <!-- Customer Name (left) -->
         <div class="relative">
           <label class="block text-xs text-stone-500 mb-1">Customer Name</label>
           <input
@@ -61,43 +62,38 @@
             </button>
           </div>
         </div>
+        <!-- Country (right) -->
         <div>
           <label class="block text-xs text-stone-500 mb-1">Country</label>
-          <div class="flex items-center gap-4 mt-1">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="radio" v-model="form.country" value="MY" class="accent-[rgb(134,153,64)]" />
-              <span class="text-sm text-stone-900">Malaysia</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="radio" v-model="form.country" value="SG" class="accent-[rgb(134,153,64)]" />
-              <span class="text-sm text-stone-900">Singapore</span>
-            </label>
+          <div class="flex mt-1">
+            <button type="button" @click="form.country = 'MY'" :class="['px-4 py-1.5 text-sm rounded-l-lg border transition-colors', form.country === 'MY' ? 'bg-[rgb(134,153,64)] text-white border-[rgb(134,153,64)]' : 'bg-stone-100 text-stone-600 border-stone-300']">Malaysia</button>
+            <button type="button" @click="form.country = 'SG'" :class="['px-4 py-1.5 text-sm rounded-r-lg border border-l-0 transition-colors', form.country === 'SG' ? 'bg-[rgb(134,153,64)] text-white border-[rgb(134,153,64)]' : 'bg-stone-100 text-stone-600 border-stone-300']">Singapore</button>
           </div>
         </div>
-      </div>
 
-      <!-- Row 3: Branch, PO Number, Invoice No -->
-      <div class="grid grid-cols-3 gap-4 mb-4">
+        <!-- Branch (left) -->
         <div>
           <label class="block text-xs text-stone-500 mb-1">Branch</label>
           <input v-model="branchDisplay" readonly class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm" />
         </div>
-        <div>
-          <label class="block text-xs text-stone-500 mb-1">P/O Number</label>
-          <input v-model="form.poNumber" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50" />
+        <!-- P/O Number + Invoice No (right, side by side) -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-stone-500 mb-1">P/O Number</label>
+            <input v-model="form.poNumber" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50" />
+          </div>
+          <div>
+            <label class="block text-xs text-stone-500 mb-1">Invoice No</label>
+            <input v-model="form.invoiceNumber" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50" />
+          </div>
         </div>
-        <div>
-          <label class="block text-xs text-stone-500 mb-1">Invoice No</label>
-          <input v-model="form.invoiceNumber" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50" />
-        </div>
-      </div>
 
-      <!-- Row 4-5: Address + Truck / Deliver Remark / Basket / Box -->
-      <div class="grid grid-cols-3 gap-4 mb-4">
+        <!-- Address (left, tall) -->
         <div class="row-span-2">
           <label class="block text-xs text-stone-500 mb-1">Address</label>
-          <textarea v-model="form.deliveryAddress" rows="4" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50 resize-none" />
+          <textarea v-model="form.deliveryAddress" rows="5" class="w-full h-[calc(100%-1.25rem)] bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50 resize-none" />
         </div>
+        <!-- Truck (right) -->
         <div>
           <label class="block text-xs text-stone-500 mb-1">Truck</label>
           <select v-model="form.truck" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50">
@@ -105,7 +101,16 @@
             <option v-for="t in trucks" :key="t.id" :value="t.code">{{ t.code }} {{ t.description ? `- ${t.description}` : '' }}</option>
           </select>
         </div>
-        <div class="grid grid-cols-2 gap-4">
+        <!-- Deliver Remark + Basket + Box (right, same row) -->
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs text-stone-500 mb-1">Delivery Remark</label>
+            <select v-model="form.deliverySlot" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50">
+              <option value="TOMORROW_MORNING">Tomorrow Morning</option>
+              <option value="AFTERNOON">Afternoon</option>
+              <option value="MORNING">Morning</option>
+            </select>
+          </div>
           <div>
             <label class="block text-xs text-stone-500 mb-1">Basket</label>
             <input v-model.number="form.basket" type="number" min="0" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50" />
@@ -115,28 +120,13 @@
             <input v-model.number="form.box" type="number" min="0" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50" />
           </div>
         </div>
-      </div>
 
-      <!-- Row: Deliver Remark -->
-      <div class="grid grid-cols-3 gap-4 mb-4">
-        <div></div>
-        <div>
-          <label class="block text-xs text-stone-500 mb-1">Deliver Remark</label>
-          <select v-model="form.deliverySlot" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50">
-            <option value="TOMORROW_MORNING">Tomorrow Morning</option>
-            <option value="AFTERNOON">Afternoon</option>
-            <option value="MORNING">Morning</option>
-          </select>
-        </div>
-        <div></div>
-      </div>
-
-      <!-- Row 6: Note, Status -->
-      <div class="grid grid-cols-2 gap-4 mb-6">
+        <!-- Note (left) -->
         <div>
           <label class="block text-xs text-stone-500 mb-1">Note</label>
           <textarea v-model="form.notes" rows="3" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50 resize-none" />
         </div>
+        <!-- Status (right) -->
         <div>
           <label class="block text-xs text-stone-500 mb-1">Status</label>
           <select v-model="form.status" class="w-full bg-[rgb(238,238,204)] border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-green-600/50">
