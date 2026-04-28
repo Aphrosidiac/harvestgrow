@@ -90,7 +90,7 @@
             <th class="sticky z-20 bg-[rgb(134,153,64)] text-white px-2 py-3 text-center font-medium border-r border-[rgb(114,133,44)]" style="left:240px;min-width:90px">
               <div class="flex items-center justify-center gap-1">Costing <Eye class="w-3 h-3 opacity-60" /></div>
             </th>
-            <th class="sticky z-20 bg-[rgb(134,153,64)] text-white px-2 py-3 text-center font-medium border-r border-[rgb(114,133,44)]" style="left:330px;min-width:70px">UOM</th>
+            <th class="sticky z-20 bg-[rgb(134,153,64)] text-white px-2 py-3 text-center font-medium border-r-2 border-[rgb(114,133,44)] shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]" style="left:330px;min-width:70px">UOM</th>
             <th v-for="board in boards" :key="board.id" class="bg-[rgb(134,153,64)] text-white px-3 py-2 text-center font-medium whitespace-nowrap border-r border-[rgb(114,133,44)]" style="min-width:160px">
               <div class="text-sm">{{ board.name }} ({{ board.termDays }} Days)</div>
               <div class="text-[10px] font-normal opacity-70">MARKUP: FP = 0</div>
@@ -99,13 +99,13 @@
         </thead>
         <tbody>
           <tr v-for="(row, idx) in items" :key="row.stockItem.id" class="border-b border-stone-100" :class="showLowMargin && isLowMargin(row) ? 'bg-red-50' : ''">
-            <td class="sticky left-0 z-10 px-3 py-2.5 text-stone-900 font-medium border-r border-stone-200" :class="idx % 2 ? 'bg-stone-50' : 'bg-white'" style="min-width:240px">
+            <td class="sticky left-0 z-10 px-3 py-2.5 text-stone-900 font-medium border-r-2 border-stone-300 bg-white" style="min-width:240px">
               <div class="truncate max-w-[220px]" :title="row.stockItem.description">{{ row.stockItem.description }}</div>
             </td>
-            <td class="sticky z-10 px-1 py-1.5 border-r border-stone-200 text-center" :class="idx % 2 ? 'bg-stone-50' : 'bg-white'" style="left:240px;min-width:90px">
+            <td class="sticky z-10 px-1 py-1.5 border-r border-stone-200 text-center bg-white" style="left:240px;min-width:90px">
               <input :value="Number(row.stockItem.costPrice).toFixed(0)" readonly class="w-14 bg-transparent border border-stone-200 rounded px-1 py-0.5 text-center text-xs" />
             </td>
-            <td class="sticky z-10 px-2 py-2.5 border-r border-stone-200 text-center text-stone-600" :class="idx % 2 ? 'bg-stone-50' : 'bg-white'" style="left:330px;min-width:70px">{{ row.stockItem.uom }}</td>
+            <td class="sticky z-10 px-2 py-2.5 border-r-2 border-stone-300 text-center text-stone-600 bg-white shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]" style="left:330px;min-width:70px">{{ row.stockItem.uom }}</td>
             <td v-for="board in boards" :key="board.id" class="px-1 py-1.5 text-center border-r border-stone-100" :class="getPrice(row, board.id) > 0 ? 'bg-[rgb(200,230,180)]' : ''">
               <div class="flex items-center justify-center gap-1">
                 <button class="w-5 h-5 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center hover:bg-green-600 shrink-0">+</button>
