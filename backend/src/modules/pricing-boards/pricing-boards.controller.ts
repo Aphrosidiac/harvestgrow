@@ -312,15 +312,17 @@ export async function getMatrix(
 ) {
   const { branchId } = request.user
   const { page, limit, skip } = getPaginationParams(request.query)
-  const { search, termDays, country, productCode, customerGroupId } = request.query as any
+  const { search, termDays, country, productCode, customerGroupId, boardId } = request.query as any
 
-  const boardWhere: Prisma.PricingBoardWhereInput = {
-    branchId,
-    status: { in: ['PROCEED', 'DRAFT'] },
-    ...(termDays && { termDays: parseInt(termDays) }),
-    ...(customerGroupId && { groups: { some: { customerGroupId } } }),
-    ...(country && { groups: { some: { customerGroup: { country } } } }),
-  }
+  const boardWhere: Prisma.PricingBoardWhereInput = boardId
+    ? { id: boardId, branchId }
+    : {
+        branchId,
+        status: { in: ['PROCEED', 'DRAFT'] },
+        ...(termDays && { termDays: parseInt(termDays) }),
+        ...(customerGroupId && { groups: { some: { customerGroupId } } }),
+        ...(country && { groups: { some: { customerGroup: { country } } } }),
+      }
 
   const boards = await request.server.prisma.pricingBoard.findMany({
     where: boardWhere,

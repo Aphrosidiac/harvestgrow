@@ -69,6 +69,7 @@ const router = createRouter({
         { path: 'pricing/new', name: 'pricing-new', component: () => import('../pages/pricing/PricingListNewPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'pricing/matrix', name: 'pricing-matrix', component: () => import('../pages/pricing/PricingMatrixPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'pricing/edit-board', name: 'pricing-edit-board', component: () => import('../pages/pricing/PricingEditBoardPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
+        { path: 'pricing/edit-board/:id', name: 'pricing-board-price', component: () => import('../pages/pricing/PricingBoardPricePage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'reports/truck', name: 'report-truck', component: () => import('../pages/reports/ReportTruckPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'reports/export-import', name: 'report-export-import', component: () => import('../pages/reports/ReportExportImportPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },
         { path: 'reports/packing-list-summary', name: 'report-packing-list-summary', component: () => import('../pages/reports/ReportPackingListSummaryPage.vue'), meta: { roles: ['ADMIN', 'MANAGER'] } },

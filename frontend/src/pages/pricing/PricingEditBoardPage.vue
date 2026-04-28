@@ -72,10 +72,10 @@
                 </td>
                 <td class="px-4 py-3 text-right">
                   <div class="flex items-center justify-end gap-1">
-                    <button @click="openEditModal(board)" class="p-1.5 text-stone-500 hover:text-blue-400 transition-colors" title="Edit"><Pencil class="w-4 h-4" /></button>
-                    <button @click="handleCopy(board)" class="p-1.5 text-stone-500 hover:text-green-500 transition-colors" title="Copy"><Copy class="w-4 h-4" /></button>
-                    <button v-if="board.status === 'DRAFT'" @click="handleStatusChange(board, 'PROCEED')" class="p-1.5 text-stone-500 hover:text-green-600 transition-colors" title="Proceed"><CheckCircle class="w-4 h-4" /></button>
-                    <button v-if="board.status === 'DRAFT'" @click="confirmDelete(board)" class="p-1.5 text-stone-500 hover:text-red-400 transition-colors" title="Delete"><Trash2 class="w-4 h-4" /></button>
+                    <button @click="$router.push(`/app/pricing/edit-board/${board.id}`)" class="p-1.5 text-stone-500 hover:text-blue-400 transition-colors" title="Edit Prices"><FileEdit class="w-4 h-4" /></button>
+                    <button @click="openEditModal(board)" class="p-1.5 text-stone-500 hover:text-stone-700 transition-colors" title="Edit Board Info"><Settings class="w-4 h-4" /></button>
+                    <button @click="openQuotation(board)" class="p-1.5 text-stone-500 hover:text-green-500 transition-colors" title="Generate Quotation"><FileText class="w-4 h-4" /></button>
+                    <button @click="confirmDelete(board)" class="p-1.5 text-stone-500 hover:text-red-400 transition-colors" title="Delete"><Trash2 class="w-4 h-4" /></button>
                   </div>
                 </td>
               </tr>
@@ -123,6 +123,9 @@
       </template>
     </BaseModal>
 
+    <!-- Quotation Modal -->
+    <GenerateQuotationModal v-model="showQuotationModal" :board-id="quotationBoardId" :boards="boards" :groups="allGroups" />
+
     <!-- Delete Modal -->
     <BaseModal v-model="showDeleteModal" title="Delete Pricing Board" size="sm">
       <p class="text-stone-600 text-sm">Delete <strong>{{ deleteTarget?.name }}</strong>?</p>
@@ -143,7 +146,8 @@ import BaseBadge from '../../components/base/BaseBadge.vue'
 import BaseModal from '../../components/base/BaseModal.vue'
 import BaseInput from '../../components/base/BaseInput.vue'
 import BaseSelect from '../../components/base/BaseSelect.vue'
-import { Search, Plus, Pencil, Copy, Trash2, CheckCircle, List, Calendar, Clock, Users, Construction } from 'lucide-vue-next'
+import { Search, Plus, Trash2, List, Calendar, Clock, Users, Construction, FileEdit, Settings, FileText } from 'lucide-vue-next'
+import GenerateQuotationModal from '../../components/pricing/GenerateQuotationModal.vue'
 
 const toast = useToast()
 
@@ -158,6 +162,13 @@ const showModal = ref(false)
 const showDeleteModal = ref(false)
 const editing = ref<string | null>(null)
 const deleteTarget = ref<any>(null)
+const showQuotationModal = ref(false)
+const quotationBoardId = ref('')
+
+function openQuotation(board: any) {
+  quotationBoardId.value = board.id
+  showQuotationModal.value = true
+}
 
 const viewTabs = [
   { label: 'List', value: 'list', icon: List },
@@ -272,16 +283,6 @@ async function handleDelete() {
   if (!deleteTarget.value) return; deleting.value = true
   try { await api.delete(`/pricing-boards/${deleteTarget.value.id}`); toast.success('Board deleted'); showDeleteModal.value = false; fetchBoards() }
   catch (e: any) { toast.error(e.response?.data?.message || 'Failed to delete') } finally { deleting.value = false }
-}
-
-async function handleCopy(b: any) {
-  try { await api.post(`/pricing-boards/${b.id}/copy`); toast.success('Board copied'); fetchBoards() }
-  catch (e: any) { toast.error(e.response?.data?.message || 'Failed to copy') }
-}
-
-async function handleStatusChange(b: any, status: string) {
-  try { await api.patch(`/pricing-boards/${b.id}/status`, { status }); toast.success(`Status changed to ${status}`); fetchBoards() }
-  catch (e: any) { toast.error(e.response?.data?.message || 'Failed to update status') }
 }
 
 onMounted(() => { fetchBoards(); fetchGroups() })
