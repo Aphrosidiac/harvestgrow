@@ -128,6 +128,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSalesOrderStore } from '../../stores/salesOrders'
 import { useToast } from '../../composables/useToast'
 import { generatePickingListPdf, generateDeliveryOrderPdf } from '../../lib/sales-order-pdf'
+import { fmtDateTime } from '../../lib/date-utils'
+import { slotLabel } from '../../lib/pricing-utils'
 import type { SalesOrder } from '../../types'
 import { ArrowLeft, ImageIcon } from 'lucide-vue-next'
 
@@ -141,18 +143,7 @@ const totalQtyKg = computed(() => {
   return (order.value?.items || []).reduce((sum, i) => sum + Number(i.quantity), 0).toFixed(3)
 })
 
-function fmtDate(d: string) {
-  try { return new Date(d).toLocaleString('en-MY') } catch { return d }
-}
-
-function slotLabel(s: string) {
-  switch (s) {
-    case 'AFTERNOON': return 'Afternoon'
-    case 'TOMORROW_MORNING': return 'Tomorrow Morning'
-    case 'MORNING': return 'Morning'
-    default: return s
-  }
-}
+const fmtDate = fmtDateTime
 
 function statusLabel(s: string) {
   switch (s) {

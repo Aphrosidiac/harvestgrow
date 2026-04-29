@@ -23,15 +23,7 @@ export interface InvoiceDoc {
   }>
 }
 
-const COMPANY = {
-  name: 'HARVEST GROW VEG SDN BHD',
-  address: '5 Jalan Kempas Lama, 2/4 Kempas Lama, 81200 Johor Bahru, Johor',
-  phone: '+607-511 2696',
-  email: 'sales@harvestgrow-veg.com',
-}
-
-// Olive brand color
-const OLIVE: [number, number, number] = [134, 153, 64]
+import { COMPANY, OLIVE } from './company'
 
 export function downloadShopInvoicePdf(doc: InvoiceDoc) {
   const pdf = new jsPDF()

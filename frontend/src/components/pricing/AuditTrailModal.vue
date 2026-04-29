@@ -36,6 +36,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import api from '../../lib/api'
+import { fmtTime, fmtDate as fmtDateShortUtil, fmtDateLong as fmtDateLongUtil } from '../../lib/date-utils'
 import BaseModal from '../base/BaseModal.vue'
 import BaseButton from '../base/BaseButton.vue'
 import { Search } from 'lucide-vue-next'
@@ -64,9 +65,9 @@ async function fetchLogs() {
   finally { loading.value = false }
 }
 
-function formatTime(d: string) { try { return new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) } catch { return d } }
-function formatDateShort(d: string) { try { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}/${dt.getFullYear()}` } catch { return d } }
-function formatDateLong(d: string) { try { return new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) } catch { return d } }
+const formatTime = fmtTime
+const formatDateShort = fmtDateShortUtil
+const formatDateLong = fmtDateLongUtil
 
 function formatDetails(changes: any) {
   if (!changes) return ''

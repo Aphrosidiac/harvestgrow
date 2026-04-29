@@ -130,25 +130,10 @@
 import { ref, reactive, watch, computed } from 'vue'
 import { useSalesOrderStore } from '../../stores/salesOrders'
 import api from '../../lib/api'
+import { fmtDate } from '../../lib/date-utils'
 import BaseModal from '../base/BaseModal.vue'
 import BaseButton from '../base/BaseButton.vue'
-
-interface FormItem {
-  stockItemId?: string
-  itemCode?: string
-  description: string
-  quantity: number
-  unit: string
-  unitPrice: number
-  discountPercent: number
-  taxRate: number
-  notes?: string
-  secondDescription?: string
-  remark?: string
-  imageUrl?: string
-  foc?: boolean
-  processing?: string
-}
+import type { FormItem } from '../../types'
 
 const props = defineProps<{
   modelValue: boolean
@@ -290,7 +275,4 @@ watch(() => props.modelValue, (v) => {
   }
 })
 
-function fmtDate(d: string) {
-  try { return new Date(d).toLocaleDateString('en-MY') } catch { return d }
-}
 </script>

@@ -131,6 +131,8 @@ import { useToast } from '../../composables/useToast'
 import BaseButton from '../../components/base/BaseButton.vue'
 import ClearanceSettingsModal from '../../components/product-clearance/ClearanceSettingsModal.vue'
 import { ArrowLeft, Search, Download, Lock } from 'lucide-vue-next'
+import { fmtDateDMY } from '../../lib/date-utils'
+import { isLowMargin as checkLowMargin } from '../../lib/pricing-utils'
 import * as XLSX from 'xlsx'
 import type { ClearanceList, ClearanceItem } from '../../types'
 
@@ -164,10 +166,7 @@ const lowMarginCount = computed(() => {
 })
 
 function isLowMargin(item: ClearanceItem): boolean {
-  const sell = Number(item.stockItem?.sellPrice || 0)
-  const cost = Number(item.cost || 0)
-  if (sell <= 0) return false
-  return ((sell - cost) / sell) * 100 < marginThreshold.value
+  return checkLowMargin(Number(item.stockItem?.sellPrice || 0), Number(item.cost || 0), marginThreshold.value)
 }
 
 function recalculate(item: ClearanceItem) {
@@ -181,13 +180,7 @@ function recalculate(item: ClearanceItem) {
   item.lost = item.estimatedBalance - actBal
 }
 
-function formatDate(d: string): string {
-  const date = new Date(d)
-  const dd = String(date.getUTCDate()).padStart(2, '0')
-  const mm = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const yyyy = date.getUTCFullYear()
-  return `${dd}-${mm}-${yyyy}`
-}
+const formatDate = fmtDateDMY
 
 async function loadList() {
   try {

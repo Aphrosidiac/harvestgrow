@@ -589,3 +589,26 @@ export interface ClearanceSettingItem {
   showInClearance: boolean
 }
 
+// ─── PRICING MATRIX ──────────────────────────────────────
+export interface PricingMatrixRow {
+  stockItem: { id: string; itemCode: string; description: string; uom: string; costPrice: number; sellPrice: number }
+  prices: Record<string, number>
+}
+
+export interface FormItem {
+  stockItemId?: string
+  itemCode?: string
+  description: string
+  quantity: number
+  unit: string
+  unitPrice: number
+  discountPercent: number
+  taxRate: number
+  notes?: string
+  secondDescription?: string
+  remark?: string
+  imageUrl?: string
+  foc?: boolean
+  processing?: string
+}
+

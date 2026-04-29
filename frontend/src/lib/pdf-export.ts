@@ -2,11 +2,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { StockItem, StockHistory } from '../types'
 
-const COMPANY = {
-  name: 'HARVEST GROW VEG SDN BHD',
-  address: '22, Jalan Mutiara Emas 5/1, Taman Mount Austin, 81100 Johor Bahru, Johor',
-  phone: '+60 18-207 8080',
-}
+import { COMPANY } from './company'
 
 function addHeader(doc: jsPDF) {
   doc.setFillColor(17, 18, 23)

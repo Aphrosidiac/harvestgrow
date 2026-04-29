@@ -1,15 +1,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { SalesOrder } from '../types'
-
-const COMPANY = {
-  name: 'HARVESTGROW VEG SDN BHD (1344269-D)',
-  addressLine1: 'NO.5, JALAN KEMPAS LAMA 2/4, KEMPAS LAMA,',
-  addressLine2: '81200 JOHOR BAHRU, JOHOR.',
-  phone: 'Tel: +6075112696',
-  email: 'Email: sales@harvestgrow-veg.com',
-  tin: '(TIN Number : C26132987010)',
-}
+import { COMPANY } from './company'
 
 type DocType = 'PICKING LIST' | 'DELIVERY ORDER'
 
@@ -41,13 +33,13 @@ function generateOrderDocument(order: SalesOrder, type: DocType) {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
     doc.setTextColor(0, 0, 0)
-    doc.text(COMPANY.name, 25, 14)
+    doc.text(COMPANY.fullName, 25, 14)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.text(COMPANY.addressLine1, 25, 20)
     doc.text(COMPANY.addressLine2, 25, 24)
-    doc.text(`${COMPANY.phone} ${COMPANY.email}`, 25, 28)
-    doc.text(COMPANY.tin, 25, 32)
+    doc.text(`Tel: ${COMPANY.phone} Email: ${COMPANY.email}`, 25, 28)
+    doc.text(`(TIN Number : ${COMPANY.tin})`, 25, 32)
 
     // Timestamp
     doc.setFontSize(8)

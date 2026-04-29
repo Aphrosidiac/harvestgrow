@@ -60,10 +60,10 @@
         <div class="border border-stone-200 rounded-lg bg-white p-8 max-h-[70vh] overflow-y-auto shadow-inner">
           <div class="max-w-2xl mx-auto text-sm">
             <div class="text-center mb-6">
-              <h2 class="text-lg font-bold">HARVESTGROW VEG SDN BHD (1344269-D)</h2>
-              <p class="text-xs text-stone-600">NO 5, JALAN KEMPAS LAMA 2/4</p>
-              <p class="text-xs text-stone-600">KEMPAS LAMA 81200 JOHOR BAHRU JOHOR</p>
-              <p class="text-xs text-stone-600">TEL : 607-511 2696 HP : 6013-7779069 (SALES@HARVESTGROW-VEG.COM)</p>
+              <h2 class="text-lg font-bold">{{ COMPANY.fullName }}</h2>
+              <p class="text-xs text-stone-600">{{ COMPANY.addressLine1 }}</p>
+              <p class="text-xs text-stone-600">{{ COMPANY.addressLine2 }}</p>
+              <p class="text-xs text-stone-600">TEL : {{ COMPANY.phone }} HP : {{ COMPANY.hp }} ({{ COMPANY.email.toUpperCase() }})</p>
             </div>
 
             <div class="text-center mb-4 text-xs text-stone-500">
@@ -106,6 +106,8 @@ import api from '../../lib/api'
 import { useToast } from '../../composables/useToast'
 import BaseModal from '../base/BaseModal.vue'
 import BaseButton from '../base/BaseButton.vue'
+import { COMPANY, OLIVE } from '../../lib/company'
+import { fmtDateShort } from '../../lib/date-utils'
 import { Download } from 'lucide-vue-next'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -158,7 +160,7 @@ watch(selectedGroupId, async (gid) => {
   } catch { customers.value = [] }
 })
 
-function fmtDate(d: string) { try { return new Date(d).toISOString().slice(0, 10) } catch { return d } }
+const fmtDate = fmtDateShort
 
 function downloadPdf() {
   if (!boardDetail.value || !previewItems.value.length) { toast.error('No items to export'); return }
@@ -166,11 +168,11 @@ function downloadPdf() {
   const pw = doc.internal.pageSize.width
 
   doc.setFont('helvetica', 'bold'); doc.setFontSize(12)
-  doc.text('HARVESTGROW VEG SDN BHD (1344269-D)', pw / 2, 18, { align: 'center' })
+  doc.text(COMPANY.fullName, pw / 2, 18, { align: 'center' })
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
-  doc.text('NO 5, JALAN KEMPAS LAMA 2/4', pw / 2, 24, { align: 'center' })
-  doc.text('KEMPAS LAMA 81200 JOHOR BAHRU JOHOR', pw / 2, 28, { align: 'center' })
-  doc.text('TEL : 607-511 2696 HP : 6013-7779069 (SALES@HARVESTGROW-VEG.COM)', pw / 2, 32, { align: 'center' })
+  doc.text(COMPANY.addressLine1, pw / 2, 24, { align: 'center' })
+  doc.text(COMPANY.addressLine2, pw / 2, 28, { align: 'center' })
+  doc.text(`TEL : ${COMPANY.phone} HP : ${COMPANY.hp} (${COMPANY.email.toUpperCase()})`, pw / 2, 32, { align: 'center' })
 
   doc.setFontSize(9)
   doc.text(`VALID FROM: ${fmtDate(boardDetail.value.validFrom)} - ${validUntil.value || fmtDate(boardDetail.value.validTo)}`, pw / 2, 40, { align: 'center' })

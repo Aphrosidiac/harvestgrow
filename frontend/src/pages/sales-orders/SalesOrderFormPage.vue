@@ -259,22 +259,7 @@ const saving = ref(false)
 
 const isEdit = computed(() => !!route.params.id)
 
-interface FormItem {
-  stockItemId?: string
-  itemCode?: string
-  description: string
-  quantity: number
-  unit: string
-  unitPrice: number
-  discountPercent: number
-  taxRate: number
-  notes?: string
-  secondDescription?: string
-  remark?: string
-  imageUrl?: string
-  foc?: boolean
-  processing?: string
-}
+import type { FormItem } from '../../types'
 
 const form = reactive({
   salesOrderNumber: '',

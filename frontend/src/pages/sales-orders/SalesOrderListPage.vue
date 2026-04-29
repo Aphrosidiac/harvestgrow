@@ -190,6 +190,7 @@ import BaseModal from '../../components/base/BaseModal.vue'
 import { Search, Plus, Pencil, Printer, Copy, Trash2, FileText, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { generatePickingListPdf, generateDeliveryOrderPdf } from '../../lib/sales-order-pdf'
+import { slotLabel } from '../../lib/pricing-utils'
 import type { SalesOrder, SalesOrderStatus } from '../../types'
 
 const store = useSalesOrderStore()
@@ -273,13 +274,6 @@ function statusLabel(status: SalesOrderStatus): string {
   }
 }
 
-function slotLabel(slot: string): string {
-  switch (slot) {
-    case 'AFTERNOON': return 'Afternoon'
-    case 'TOMORROW_MORNING': return 'Tomorrow Morning'
-    case 'MORNING': return 'Morning'
-    default: return slot
-  }
 }
 
 function formatDate(d: string): string {

@@ -106,15 +106,12 @@ import * as XLSX from 'xlsx'
 import { ArrowLeft, Search, Download, ChevronDown, RefreshCw } from 'lucide-vue-next'
 import AuditTrailModal from '../../components/pricing/AuditTrailModal.vue'
 import BatchCopyModal from '../../components/pricing/BatchCopyModal.vue'
+import { isLowMargin as checkLowMargin } from '../../lib/pricing-utils'
+import type { PricingMatrixRow as MatrixRow } from '../../types'
 
 const route = useRoute()
 const toast = useToast()
 const boardId = route.params.id as string
-
-interface MatrixRow {
-  stockItem: { id: string; itemCode: string; description: string; uom: string; costPrice: number; sellPrice: number }
-  prices: Record<string, number>
-}
 
 const boardInfo = ref<any>(null)
 const items = ref<MatrixRow[]>([])
@@ -150,8 +147,7 @@ function onPriceInput(row: MatrixRow, e: Event) {
 }
 
 function isLowMargin(row: MatrixRow) {
-  const sell = Number(row.stockItem.sellPrice); const cost = Number(row.stockItem.costPrice)
-  return sell > 0 && ((sell - cost) / sell) * 100 < 30
+  return checkLowMargin(Number(row.stockItem.sellPrice), Number(row.stockItem.costPrice))
 }
 const lowMarginCount = computed(() => items.value.filter(isLowMargin).length)
 
