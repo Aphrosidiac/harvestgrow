@@ -274,8 +274,6 @@ function statusLabel(status: SalesOrderStatus): string {
   }
 }
 
-}
-
 function formatDate(d: string): string {
   return new Date(d).toLocaleDateString('en-CA') + ' ' + new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
